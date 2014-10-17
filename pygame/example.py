@@ -1,68 +1,44 @@
-import pygame
-from pygame.locals import *
-
+import math, pygame
+from Ball import Ball
 pygame.init()
 
-# Set Up the Window
-screen = pygame.display.set_mode((640, 480))
-pygame.display.set_caption('Test!')
+# Set up the window
+def make_screen(dimensions, caption):
+    screen = pygame.display.set_mode(dimensions)
+    pygame.display.set_caption(caption)
+    return screen
 
-# SOTC Green Background
-background = pygame.Surface(screen.get_size())
-background = background.convert()
-background.fill((20, 130, 57))
+if __name__ == '__main__':
+    width, height = 640, 480
+    screen = make_screen((width, height), 'Pool!')
 
-# Load and convert image
-ball = pygame.image.load('ball.jpeg')
-ball = ball.convert()
+    # Green background
+    background_color = (20, 130, 57)
 
-# Ball Position Varibales
-lx = 100
-ly = 100
-speed = 3
+    # Draw a ball
+    position1 = (200, 200)
+    position2 = (400, 400)
+    color1 = (0,0,255)
+    color2 = (255,255,255)
+    ball1 = Ball(position1, color1, 5.0, math.pi / 4.0)
+    ball2 = Ball(position2, color2, 10.0, 3.0 * math.pi / 4.0)
+    balls = [ball1, ball2]
 
-# Get bounds for ball
-rbound = screen.get_width() - ball.get_width()
-botbound = screen.get_height() - ball.get_height()
+    running = True
+    # Main loop
+    while running:
+        # Check for close event
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
 
-# Clock and loop variables
-framerate = pygame.time.Clock()
-running = True
+        # Fill screen with background color
+        screen.fill(background_color)
 
+        # Move and display balls
+        for ball in balls:
+            ball.move(screen)
+            ball.display(screen)
 
-# Main loop
-while running:
-	# Tick the clock
-	framerate.tick(60)
-
-	# Keypress events, move the ball
-	if pygame.key.get_pressed()[K_UP]:
-		ly = ly - speed
-	if pygame.key.get_pressed()[K_DOWN]:
-		ly = ly + speed
-	if pygame.key.get_pressed()[K_LEFT]:
-		lx = lx - speed
-	if pygame.key.get_pressed()[K_RIGHT]:
-		lx = lx + speed
-
-	# Test for Out-of-Bounds
-	if lx > rbound:
-		lx = rbound
-	if lx < 0:
-		lx = 0
-	if ly > botbound:
-		ly = botbound
-	if ly < 0:
-		ly = 0
-
-	# Blit images
-	screen.blit(background, (0, 0))
-	screen.blit(ball, (lx, ly))
-
-	# Update display
-	pygame.display.update()
-
-	# Handle a Close Event
-	for event in pygame.event.get():
-	  if event.type == pygame.QUIT:
-	    running = False
+        # Update display
+        pygame.display.flip()
