@@ -1,3 +1,3 @@
 Pool
 ====
-A project desperately in need of a better name
+Putting the "OO" back in Pool.
