@@ -1,7 +1,6 @@
 from __future__ import division
 from SimpleCV import *
-from cluster import *
-
+from cluster import HierarchicalClustering
 def getTableConvexHull(img):
     blue = img.colorDistance(Color.BLUE)
     s = img - blue
@@ -46,7 +45,8 @@ def getCorners(intersections):
     # For now, I'm taking the 4 biggest clusters.
     cornerClusters = sorted(clusters, key=len, reverse=True)[:4]
 
-    return map(averageCoords, cornerClusters)
+    corners = map(averageCoords, cornerClusters)
+    return sorted(corners, key=lambda p: p[0] + p[1])
 
 def drawLines(segments):
     for segment in segments:
@@ -58,7 +58,26 @@ def drawPoints(points):
         l = Circle(hImage, point[0], point[1], 3)
         l.draw(color=(255, 0, 0), width=3)
 
-img = Image('/Users/brent/table.png')
+def toTableCoords(points):
+    return map(lambda p: [p[0]-points[1][0], p[1]-points[0][1]], points)
+
+def asTuple(pointList):
+    return tuple(map(tuple, pointList))
+
+def cropAndPerspectiveTransform(corners, img):
+    table = img.crop(corners[1][0], corners[0][1],
+                     corners[3][0]-corners[1][0],
+                     corners[3][1] - corners[0][1])
+    corners = toTableCoords(corners)
+    maxX = corners[3][0]
+    maxY = max(corners[1][1], corners[3][1])
+    dst = ((0, 0), (0, maxY), (maxX, 0), (maxX, maxY))
+    print dst, asTuple(corners)
+    result = cv.CreateMat(3, 3, cv.CV_32FC1)
+    cv.GetPerspectiveTransform(asTuple(corners), dst, result)
+    return table.transformPerspective(result)
+
+img = Image('table.png')
 hImage = img * 0 
 
 hull = getTableConvexHull(img)
@@ -69,8 +88,10 @@ intersections = getIntersections(segments)
 
 corners = getCorners(intersections)
 
-for c in corners:
-    print c
+table = cropAndPerspectiveTransform(corners, img)
+
+corners = toTableCoords(corners)
+table.save("cropped.png")
 
 drawLines(segments)
 drawPoints(corners)
