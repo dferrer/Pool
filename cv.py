@@ -1,5 +1,6 @@
 from __future__ import division
 from SimpleCV import *
+from cluster import *
 
 def getTableConvexHull(img):
     blue = img.colorDistance(Color.BLUE)
@@ -9,7 +10,7 @@ def getTableConvexHull(img):
     return table.mConvexHull
     
 def length (segment):
-    return (segment[0][0] - segment[1][0])**2 + (segment[0][1] - segment[1][1])**2
+    return ((segment[0][0] - segment[1][0])**2 + (segment[0][1] - segment[1][1])**2)**(1/2)
 
 def getIntersections(segments):
     intersections = []
@@ -29,6 +30,24 @@ def getIntersections(segments):
                         intersections.append([xi, yi])
     return intersections
 
+
+def averageCoords(coordList):
+    xl = map(lambda c: c[0], coordList)
+    yl = map(lambda c: c[1], coordList)
+    x = int(sum(xl)/len(xl))
+    y = int(sum(yl)/len(yl))
+    return [x, y]
+
+def getCorners(intersections):
+    cl = HierarchicalClustering(intersections, lambda p1, p2: length([p1, p2]))
+    clusters = cl.getlevel(25)
+
+    # probably want to make sure we actually have the corners at this point.
+    # For now, I'm taking the 4 biggest clusters.
+    cornerClusters = sorted(clusters, key=len, reverse=True)[:4]
+
+    return map(averageCoords, cornerClusters)
+
 def drawLines(segments):
     for segment in segments:
         l = Line(hImage, (segment[0], segment[1]))
@@ -44,11 +63,16 @@ hImage = img * 0
 
 hull = getTableConvexHull(img)
 segments = [p for p in zip(hull, hull[1:] + [hull[-1]])]
-
 segments = sorted(segments, reverse=True, key = length)
 
 intersections = getIntersections(segments)
+
+corners = getCorners(intersections)
+
+for c in corners:
+    print c
+
 drawLines(segments)
-drawPoints(intersections)
+drawPoints(corners)
 
 hImage.save("hull.png")
