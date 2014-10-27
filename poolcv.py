@@ -2,15 +2,16 @@ from __future__ import division
 from SimpleCV import *
 from cluster import HierarchicalClustering
 
-def getTableConvexHull(img):
+def getTableBlob(img):
     blue = img.colorDistance(Color.BLUE)
     s = img - blue
     blobs = s.findBlobs()
-    table = blobs[-1]
+    return blobs[-1]
+
+def getTableConvexHull(table):
     hull = table.mConvexHull
     return sorted([p for p in zip(hull, hull[1:] + [hull[-1]])],
                   reverse=True, key = length)
-    
     
 def length (segment):
     return ((segment[0][0] - segment[1][0])**2 + (segment[0][1] - segment[1][1])**2)**(1/2)
@@ -78,7 +79,14 @@ def drawPoints(points, img):
 def toTableCoords(points):
     return map(lambda p: [p[0]-points[1][0], p[1]-points[0][1]], points)
 
-def validCorners(corners):
+def findBalls(img):
+    blobs = img.findCircle()
+    if(blobs):
+       blobs.show()
+    return True
+
+def validFrame(corners, tableBlob):
+    #check area of biggest blob
     tCorners = toTableCoords(corners)
     minC = min(sum(tCorners, []))
     if(minC < 0):
@@ -110,28 +118,42 @@ def cropAndPerspectiveTransform(corners, img):
         cv.GetPerspectiveTransform(asTuple(tCorners), dst, result)
         return table.transformPerspective(result)
 
-def makeTransformed(index):
-    print "Processing table " + str(index) + "."
-    
-    img = Image("img/table" + str(index) + ".png")
+correctArea = 650250
+def makeTransformed(img):
     hImage = img * 0 
     
-    segments = getTableConvexHull(img)
+    tableBlob = getTableBlob(img)
+
+    areaError = abs(tableBlob.area() - correctArea) / correctArea
+    if areaError > .01:
+        return False
+
+    segments = getTableConvexHull(tableBlob)
     
     intersections = getIntersections(segments, img.width, img.height)
     
     corners = getCorners(intersections)
     
-    drawLines(segments[:10], hImage)
-    drawPoints(corners, hImage)
-    #drawPoints(intersections[:10], hImage)
+    if not validFrame(corners, tableBlob):
+        return False
     
-    table = cropAndPerspectiveTransform(corners, img)
-    if(table and validCorners(corners)):
-        table.save("out/cropped" + str(index) + ".png")
-        hImage.save("out/hull" + str(index) + ".png")
+    tableImg = cropAndPerspectiveTransform(corners, img)
+    if(tableImg):
+        return tableImg
+    return False
 
-    print "\n-------------\n"
 
-for x in range(0, 10):
-    makeTransformed(x)
+def processFrames():
+    for x in range(0, 10):
+        print "Processing table " + str(x) + "."
+    
+        img = Image("img/table" + str(x) + ".png")
+        img = makeTransformed(img)
+        if(img):
+            img.save("out/cropped" + str(x) + ".png")
+        print "\n-------------\n"
+
+
+if __name__ == "__main__":
+    processFrames()
+                
