@@ -2,11 +2,41 @@ from __future__ import division
 from SimpleCV import *
 from cluster import HierarchicalClustering
 
-def getTableBlob(img):
-    blue = img.colorDistance(Color.BLUE)
-    s = img - blue
+#Next, how do I get the table color? Hold webcam up to only table?
+def getParams(camera):
+    params = dict()
+    print "Determining color of the table."
+    raw_input("Hold webcam 6 inches from table, with no shadows, and press enter.\n")
+    params["color"] = getTableColor(camera)
+
+    print "Make sure that the table is not obstructed!"
+    params["area"] = 650250 #getTableBlob(img, params).area()
+    
+    # We'll want to show these params to the user to make sure they're sane before continuing.
+
+    return params
+    
+def getTableColor(camera):
+    m = (0.0, 0.0, 0.0)
+    while(m == (0.0, 0.0, 0.0)):
+        img = camera.getImage()
+        img.show()
+        m = img.meanColor()
+        print m
+    return m
+
+def getTableArea(camera, params):
+    img = camera.getImage()
+    blob = getTableBlob(img, params)
+    if blob:
+        return blob.area()
+
+def getTableBlob(img, params):
+    color = img.colorDistance(params["color"])
+    s = img - color
     blobs = s.findBlobs()
-    return blobs[-1]
+    if blobs:
+        return blobs[-1]
 
 def getTableConvexHull(table):
     hull = table.mConvexHull
@@ -80,7 +110,8 @@ def toTableCoords(points):
     return map(lambda p: [p[0]-points[1][0], p[1]-points[0][1]], points)
 
 def findBalls(img):
-    blobs = img.findCircle()
+    edges = img.getFullEdgeImage
+    edges.show()
     if(blobs):
        blobs.show()
     return True
@@ -116,16 +147,22 @@ def cropAndPerspectiveTransform(corners, img):
         dst = ((0, 0), (0, maxY), (maxX, 0), (maxX, maxY))
         result = cv.CreateMat(3, 3, cv.CV_32FC1)
         cv.GetPerspectiveTransform(asTuple(tCorners), dst, result)
-        return table.transformPerspective(result)
+        blurred = img.blur(window=(3, 3))
+        transformed = table.transformPerspective(result)
+        return transformed.blur(window=(3, 3))
 
 correctArea = 650250
-def makeTransformed(img):
+def makeTransformed(img, params):
     hImage = img * 0 
     
-    tableBlob = getTableBlob(img)
+    tableBlob = getTableBlob(img, params)
+    if not tableBlob:
+        print "Error! Blank image!"
+        return False
 
-    areaError = abs(tableBlob.area() - correctArea) / correctArea
+    areaError = abs(tableBlob.area() - params["area"]) / params["area"]
     if areaError > .01:
+        print "Frame doesn't contain table or table is partially obscured."
         return False
 
     segments = getTableConvexHull(tableBlob)
@@ -135,11 +172,13 @@ def makeTransformed(img):
     corners = getCorners(intersections)
     
     if not validFrame(corners, tableBlob):
+        print "Invalid frame. If I told you why, I would have to kill you."
         return False
     
     tableImg = cropAndPerspectiveTransform(corners, img)
     if(tableImg):
         return tableImg
+    print "Invalid frame. If I told you why, I would have to kill you."
     return False
 
 
