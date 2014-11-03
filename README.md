@@ -1,3 +1,3 @@
-Pool
+Pl
 ====
-Putting the "OO" back in Pool.
+Taking the "OO" out of Pool.
