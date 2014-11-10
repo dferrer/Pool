@@ -2,8 +2,8 @@ import pygame
 from pygame.locals import QUIT
 from math import atan2, cos, degrees, pi, sin
 from Box2D import b2CircleShape, b2Fixture, b2PolygonShape, b2World
-from scipy.constants import g as gravity
 from random import randrange
+from scipy.constants import g
 
 PPM = 400.0 # Pixels per meter, since Box2D uses meters but we want to use pixels
 FPS = 60 # Frames per second
@@ -17,7 +17,9 @@ CUE_BALL_MASS = 0.170 # 6 oz => kg
 CUE_BALL_DENSITY = CUE_BALL_MASS / BALL_VOLUME
 BALL_MASS = 0.156 # 5.5 oz => kg
 BALL_DENSITY = BALL_MASS / BALL_VOLUME
-MU = 0.04 # 0.013 actual, but 0.04 looks nice
+MU = 0.05 # 0.013 actual, but this looks nice
+FRICTION = 0.0 # Turn off friction since we are using a top-down view
+RESTITUTION = 1.0 # Elastic collisions
 
 def draw_polygon(polygon, screen, body, fixture, color):
     '''Extend the shape class to use pygame for drawing polygons.'''
@@ -39,9 +41,9 @@ def setup_pygame(message):
     pygame.display.set_caption(message)
     return screen, clock
 
-def setup_box2D():
+def setup_box2D(gravity=False):
     '''Create Box2D world.'''
-    world = b2World(gravity=(0,0), doSleep=True) # Turn off gravity by setting it to (0,0)
+    world = b2World(gravity=(0, -1.0 * g if gravity else 0), doSleep=True) # Turn off gravity
     b2PolygonShape.draw = draw_polygon
     b2CircleShape.draw = draw_circle
     return world
@@ -50,16 +52,15 @@ def make_table(world):
     '''Create static bodies to represent the edges of the table.'''
     positions = [(TABLE_WIDTH / 2.0, EDGE_WIDTH), (EDGE_WIDTH,TABLE_HEIGHT / 2), (TABLE_WIDTH - EDGE_WIDTH,TABLE_HEIGHT / 2), (TABLE_WIDTH / 2.0, TABLE_HEIGHT - EDGE_WIDTH)]
     dimensions = [(TABLE_WIDTH / 2,EDGE_WIDTH), (EDGE_WIDTH, TABLE_HEIGHT / 2), (EDGE_WIDTH, TABLE_HEIGHT / 2), (TABLE_WIDTH / 2, EDGE_WIDTH)]
-    rest = 1.0 # For elastic collisions with the sides of the table
-    edges = [world.CreateStaticBody(position=pos, shapes=b2PolygonShape(box=dim), restitution=rest) for pos, dim in zip(positions, dimensions)]
+    edges = [world.CreateStaticBody(position=pos, shapes=b2PolygonShape(box=dim), restitution=RESTITUTION) for pos, dim in zip(positions, dimensions)]
     for edge in edges: # Set edge frictions to 0
-        edge.fixtures[0].friction = 0.0
+        edge.fixtures[0].friction = FRICTION
     return edges
 
 def make_ball(world, position, density):
     '''Create a dynamic body to respresent a ball.'''
     body = world.CreateDynamicBody(position=position, bullet=True)
-    ball = body.CreateCircleFixture(radius=BALL_RADIUS, density=CUE_BALL_DENSITY, restitution=1.0, friction=0.0)
+    ball = body.CreateCircleFixture(radius=BALL_RADIUS, density=CUE_BALL_DENSITY, restitution=RESTITUTION, friction=FRICTION)
     return ball
 
 def make_balls(world):
@@ -87,7 +88,7 @@ def apply_friction(body):
         else:
             # Apply friction force
             mass = body.massData.mass
-            force = -1.0 * mass * gravity * MU
+            force = -1.0 * mass * g * MU
             angle = degrees(atan2(y_vel, x_vel))
             components = (force * cos(angle), force * sin(angle))
             position = (body.position[0], body.position[1])
@@ -125,7 +126,7 @@ def rand_color():
 def main():
     # Set up the table and balls
     screen, clock = setup_pygame('Physics!')
-    world = setup_box2D()
+    world = setup_box2D(gravity=False)
     edges = make_table(world)
     balls = make_balls(world)
 
@@ -134,7 +135,7 @@ def main():
 
     # Break (hit the cue ball)
     cue_ball = balls[0]
-    force = (-125.0, 0.0)
+    force = (-130.0, 0.0)
     cue_ball.body.ApplyForce(force=force, point=cue_ball.body.position, wake=True)
 
     # Run the simulation
