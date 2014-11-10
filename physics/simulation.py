@@ -17,7 +17,7 @@ CUE_BALL_MASS = 0.170 # 6 oz => kg
 CUE_BALL_DENSITY = CUE_BALL_MASS / BALL_VOLUME
 BALL_MASS = 0.156 # 5.5 oz => kg
 BALL_DENSITY = BALL_MASS / BALL_VOLUME
-MU = 0.05 # 0.013 actual, but this looks nice
+MU = 0.15 # 0.013 actual, but this looks nice
 FRICTION = 0.0 # Turn off friction since we are using a top-down view
 RESTITUTION = 1.0 # Elastic collisions
 
@@ -76,23 +76,39 @@ def make_balls(world):
     other_balls = [make_ball(world, pos, BALL_DENSITY) for pos in positions]
     return [cue_ball] + other_balls
 
+def unit(vel):
+    return vel / (vel[0]**2 + vel[1]**2)**(1/2)
+
 def apply_friction(body):
     '''Calculate and apply the frictional force on a body.'''
     x_vel, y_vel = body.linearVelocity[0], body.linearVelocity[1]
-    threshold = 0.15
-    if abs(x_vel) > 0.00001 or abs(y_vel) > 0.00001:
-        if abs(x_vel) < threshold and abs(y_vel) < threshold:
+    threshold = 0.01
+    if x_vel**2 + y_vel**2 > 0:
+        if x_vel**2 + y_vel**2 < threshold: 
             # Stop the balls
             body.linearVelocity[0] = 0.0
             body.linearVelocity[1] = 0.0
         else:
-            # Apply friction force
-            mass = body.massData.mass
-            force = -1.0 * mass * g * MU
-            angle = degrees(atan2(y_vel, x_vel))
-            components = (force * cos(angle), force * sin(angle))
-            position = (body.position[0], body.position[1])
-            body.ApplyForce(force=components, point=position, wake=True)
+            dv = -MU * 9.81 * unit(body.linearVelocity) * TIME_STEP
+            body.linearVelocity += dv;
+
+def is_moving(world):
+    for i, body in enumerate(world.bodies):
+        if abs(body.linearVelocity[0]) > 0 or abs(body.linearVelocity[1] > 0):
+            return True
+    return False
+
+def simulate(world):
+    world.Step(TIME_STEP, 10, 10)
+    while is_moving(world):
+        # Apply friction forces to balls, and draw the edges and balls
+        for i, body in enumerate(world.bodies):
+            apply_friction(body)
+
+        # Simulate the next step of the Box2D world
+        world.Step(TIME_STEP, 10, 10)
+        world.ClearForces()
+    return world
 
 def run(world, screen, clock, colors):
     '''Main game loop.'''
@@ -111,7 +127,7 @@ def run(world, screen, clock, colors):
         for i, body in enumerate(world.bodies):
             apply_friction(body)
             body.fixtures[0].shape.draw(screen, body, b2Fixture, colors[i])
-
+            
         # Simulate the next step of the Box2D world
         world.Step(TIME_STEP, 10, 10)
         world.ClearForces()
@@ -135,10 +151,12 @@ def main():
 
     # Break (hit the cue ball)
     cue_ball = balls[0]
-    force = (-130.0, 0.0)
+    force = (-200.0, 0.0)
     cue_ball.body.ApplyForce(force=force, point=cue_ball.body.position, wake=True)
+    for x  10
+    simulate(world)
 
-    # Run the simulation
+    # Run the simulatio
     run(world, screen, clock, colors)
 
 if __name__ == '__main__':
