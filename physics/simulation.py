@@ -110,6 +110,24 @@ def simulate(world):
         world.ClearForces()
     return world
 
+def draw(world, screen, clock, colors):
+    '''Main game loop.'''
+    background_color = (20, 130, 57)
+    running=True
+    # DERP
+    pygame.event.get()
+
+    # Draw the table background
+    screen.fill(background_color)
+    
+    # Draw balls and edges!
+    for i, body in enumerate(world.bodies):
+        body.fixtures[0].shape.draw(screen, body, b2Fixture, colors[i])
+    
+    # Display. Tick the clock in increments of the FPS variable
+    pygame.display.flip()
+    clock.tick(FPS)
+
 def run(world, screen, clock, colors):
     '''Main game loop.'''
     background_color = (20, 130, 57)
@@ -152,12 +170,15 @@ def main():
     # Break (hit the cue ball)
     cue_ball = balls[0]
     force = (-200.0, 0.0)
-    cue_ball.body.ApplyForce(force=force, point=cue_ball.body.position, wake=True)
-    for x  10
-    simulate(world)
+    draw(world, screen, clock, colors)
 
-    # Run the simulatio
-    run(world, screen, clock, colors)
+    # Do 10 random shots
+    for x in range(10):
+        draw(world, screen, clock, colors)
+        raw_input("Press enter to apply next shot")
+        cue_ball.body.ApplyForce(force=force, point=cue_ball.body.position, wake=True)
+        simulate(world)
+        force = (100 + randrange(0, 50), 100 + randrange(0, 50))
 
 if __name__ == '__main__':
     main()
