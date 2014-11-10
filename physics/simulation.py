@@ -11,7 +11,7 @@ TIME_STEP = 1.0 / FPS # Synchronize pygame and Box2D using frames per second and
 TABLE_WIDTH, TABLE_HEIGHT = 2.34, 1.17 # Regulation pool table is 234cm (8ft) by 117cm (4ft)
 SCREEN_WIDTH, SCREEN_HEIGHT = int(PPM * TABLE_WIDTH), int(PPM * TABLE_HEIGHT)
 EDGE_WIDTH = 0.025 # This isn't to scale, but makes the edges look nice
-BALL_RADIUS = 0.0572 / 2.0 # American-style pool balls are 57.15mm in diameter
+BALL_RADIUS = 0.05715 / 2.0 # American-style pool balls are 57.15mm in diameter
 BALL_VOLUME = 4.0 / 3.0 * pi * BALL_RADIUS**3 * 10
 CUE_BALL_MASS = 0.170 # 6 oz => kg
 CUE_BALL_DENSITY = CUE_BALL_MASS / BALL_VOLUME
@@ -41,9 +41,9 @@ def setup_pygame(message):
     pygame.display.set_caption(message)
     return screen, clock
 
-def setup_box2D(gravity=False):
+def setup_box2D():
     '''Create Box2D world.'''
-    world = b2World(gravity=(0, -1.0 * g if gravity else 0), doSleep=True) # Turn off gravity
+    world = b2World(gravity=(0, 0), doSleep=True) # Turn off gravity
     b2PolygonShape.draw = draw_polygon
     b2CircleShape.draw = draw_circle
     return world
@@ -126,7 +126,7 @@ def rand_color():
 def main():
     # Set up the table and balls
     screen, clock = setup_pygame('Physics!')
-    world = setup_box2D(gravity=False)
+    world = setup_box2D()
     edges = make_table(world)
     balls = make_balls(world)
 
