@@ -67,7 +67,7 @@ def make_pockets(world):
 def make_ball(world, position, density):
     '''Create a dynamic body to respresent a ball.'''
     body = world.CreateDynamicBody(position=position, bullet=True)
-    ball = body.CreateCircleFixture(radius=BALL_RADIUS, density=CUE_BALL_DENSITY, restitution=RESTITUTION, friction=FRICTION)
+    ball = body.CreateCircleFixture(radius=BALL_RADIUS, density=CUE_BALL_DENSITY, restitution=RESTITUTION, friction=FRICTION)#, typ='ball')
     return ball
 
 def make_balls(world):
@@ -117,6 +117,24 @@ def simulate(world):
         world.ClearForces()
     return world
 
+def draw(world, screen, clock, colors):
+    '''Main game loop.'''
+    background_color = (20, 130, 57)
+    running=True
+    # DERP
+    pygame.event.get()
+
+    # Draw the table background
+    screen.fill(background_color)
+    
+    # Draw balls and edges!
+    for i, body in enumerate(world.bodies):
+        body.fixtures[0].shape.draw(screen, body, b2Fixture, colors[i])
+    
+    # Display. Tick the clock in increments of the FPS variable
+    pygame.display.flip()
+    clock.tick(FPS)
+
 def run(world, screen, clock, colors):
     '''Main game loop.'''
     background_color = (20, 130, 57)
@@ -134,6 +152,10 @@ def run(world, screen, clock, colors):
         for i, body in enumerate(world.bodies):
             apply_friction(body)
             body.fixtures[0].shape.draw(screen, body, b2Fixture, colors[i])
+
+        for contact in world.contacts:
+            if contact.touching:
+                print contact
             
         # Simulate the next step of the Box2D world
         world.Step(TIME_STEP, 10, 10)
@@ -164,8 +186,18 @@ def main():
     # for x  10
     # simulate(world)
 
-    # Run the simulatio
+    # Run the simulation
     run(world, screen, clock, colors)
+    # force = (-200.0, 0.0)
+    # draw(world, screen, clock, colors)
+
+    # # Do 10 random shots
+    # for x in range(10):
+    #     draw(world, screen, clock, colors)
+    #     raw_input("Press enter to apply next shot")
+    #     cue_ball.body.ApplyForce(force=force, point=cue_ball.body.position, wake=True)
+    #     simulate(world)
+    #     force = (100 + randrange(0, 50), 100 + randrange(0, 50))
 
 if __name__ == '__main__':
     main()
