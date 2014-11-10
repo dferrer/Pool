@@ -12,6 +12,7 @@ TABLE_WIDTH, TABLE_HEIGHT = 2.34, 1.17 # Regulation pool table is 234cm (8ft) by
 SCREEN_WIDTH, SCREEN_HEIGHT = int(PPM * TABLE_WIDTH), int(PPM * TABLE_HEIGHT)
 EDGE_WIDTH = 0.025 # This isn't to scale, but makes the edges look nice
 BALL_RADIUS = 0.05715 / 2.0 # American-style pool balls are 57.15mm in diameter
+POCKET_RADIUS = .0500 # 4.75cm will do for now
 BALL_VOLUME = 4.0 / 3.0 * pi * BALL_RADIUS**3 * 10
 CUE_BALL_MASS = 0.170 # 6 oz => kg
 CUE_BALL_DENSITY = CUE_BALL_MASS / BALL_VOLUME
@@ -57,6 +58,12 @@ def make_table(world):
         edge.fixtures[0].friction = FRICTION
     return edges
 
+def make_pockets(world):
+    positions = [(TABLE_WIDTH - EDGE_WIDTH - 0.015, TABLE_HEIGHT - EDGE_WIDTH - 0.015), (TABLE_WIDTH - EDGE_WIDTH - 0.015, EDGE_WIDTH + 0.015),
+                 (EDGE_WIDTH + 0.015, TABLE_HEIGHT - EDGE_WIDTH - 0.015), (EDGE_WIDTH + 0.015, EDGE_WIDTH + 0.015)]
+    pockets = [world.CreateStaticBody(position=pos, shapes=b2CircleShape(radius=POCKET_RADIUS), restitution=RESTITUTION) for pos in positions]
+    return pockets
+
 def make_ball(world, position, density):
     '''Create a dynamic body to respresent a ball.'''
     body = world.CreateDynamicBody(position=position, bullet=True)
@@ -89,7 +96,7 @@ def apply_friction(body):
             body.linearVelocity[0] = 0.0
             body.linearVelocity[1] = 0.0
         else:
-            dv = -MU * 9.81 * unit(body.linearVelocity) * TIME_STEP
+            dv = -MU * g * unit(body.linearVelocity) * TIME_STEP
             body.linearVelocity += dv;
 
 def is_moving(world):
@@ -145,16 +152,17 @@ def main():
     world = setup_box2D()
     edges = make_table(world)
     balls = make_balls(world)
+    pockets = make_pockets(world)
 
     # For now, make random ball colors
-    colors = [(150, 111, 51)]*4 + [(255, 255, 255)] + [rand_color() for x in range(4)] + [(0, 0, 0)] + [rand_color() for x in range(10)]
+    colors = [(150, 111, 51)]*4 + [(255, 255, 255)] + [rand_color() for x in range(4)] + [(0, 0, 0)] + [rand_color() for x in range(10)] + [(0, 0, 0)]*6
 
     # Break (hit the cue ball)
     cue_ball = balls[0]
-    force = (-200.0, 0.0)
+    force = (-550.0, 0.0)
     cue_ball.body.ApplyForce(force=force, point=cue_ball.body.position, wake=True)
-    for x  10
-    simulate(world)
+    # for x  10
+    # simulate(world)
 
     # Run the simulatio
     run(world, screen, clock, colors)
