@@ -4,6 +4,7 @@ from math import atan2, cos, degrees, pi, sin
 from Box2D import b2CircleShape, b2Fixture, b2PolygonShape, b2World
 from random import randrange
 from scipy.constants import g
+import time
 
 PPM = 400.0 # Pixels per meter, since Box2D uses meters but we want to use pixels
 FPS = 60 # Frames per second
@@ -12,7 +13,7 @@ TABLE_WIDTH, TABLE_HEIGHT = 2.34, 1.17 # Regulation pool table is 234cm (8ft) by
 SCREEN_WIDTH, SCREEN_HEIGHT = int(PPM * TABLE_WIDTH), int(PPM * TABLE_HEIGHT)
 EDGE_WIDTH = 0.025 # This isn't to scale, but makes the edges look nice
 BALL_RADIUS = 0.05715 / 2.0 # American-style pool balls are 57.15mm in diameter
-POCKET_RADIUS = .0500 # 4.75cm will do for now
+POCKET_RADIUS = .100 # 4.75cm will do for now
 BALL_VOLUME = 4.0 / 3.0 * pi * BALL_RADIUS**3 * 10
 CUE_BALL_MASS = 0.170 # 6 oz => kg
 CUE_BALL_DENSITY = CUE_BALL_MASS / BALL_VOLUME
@@ -33,6 +34,15 @@ def draw_circle(circle, screen, body, fixture, color):
     position=body.transform*circle.pos*PPM
     points=(position[0], SCREEN_HEIGHT-position[1])
     pygame.draw.circle(screen, color, [int(x) for x in points], int(circle.radius*PPM))
+
+def draw_ball(circle, number, screen, body, fixture, color):
+    position=body.transform*circle.pos*PPM
+    points=(position[0], SCREEN_HEIGHT-position[1])
+    coords = [int(x) for x in points]
+    pygame.draw.circle(screen, color, coords, int(circle.radius*PPM))
+    myfont = pygame.font.SysFont("monospace", 15)
+    label = myfont.render(str(number), 1, (255,255,255))
+    screen.blit(label, coords)
 
 def setup_pygame(message):
     '''Make a Pygame screen and clock.'''
@@ -105,19 +115,42 @@ def is_moving(world):
             return True
     return False
 
-def simulate(world):
+def isMade(ball, pockets):
+    for pocket in pockets:
+        d = ball.body.position - pocket.position
+        if(d[0]**2 + d[1]**2 < (1.3 * POCKET_RADIUS)**2):
+            return True
+    return False
+
+def removeBall(ball):
+    ball.body.position = (5, 5)
+    ball.body.linearVelocity[0] = ball.body.linearVelocity[1] = 0
+
+def simulate(world, balls, edges, pockets, colors, screen, clock, do_draw):
     world.Step(TIME_STEP, 10, 10)
+    scratch = False
     while is_moving(world):
-        # Apply friction forces to balls, and draw the edges and balls
+        # Apply friction forces to balls
         for i, body in enumerate(world.bodies):
             apply_friction(body)
 
+        for i in range(0, len(balls)):
+            if isMade(balls[i], pockets):
+                print "Made the " + str(i) + " ball!"
+                removeBall(balls[i])
+                if i is 0:
+                    print "scratch!"
+                    scratch = True
         # Simulate the next step of the Box2D world
         world.Step(TIME_STEP, 10, 10)
         world.ClearForces()
+
+        # draw(world, balls, edges, screen, clock, colors)
+    if scratch: 
+        balls[0].body.position = (TABLE_WIDTH / 2.0 + TABLE_WIDTH / 4.0 + 0.4, TABLE_HEIGHT / 2.0)
     return world
 
-def draw(world, screen, clock, colors):
+def draw(world, balls, edges, screen, clock, colors):
     '''Main game loop.'''
     background_color = (20, 130, 57)
     running=True
@@ -135,9 +168,8 @@ def draw(world, screen, clock, colors):
     pygame.display.flip()
     clock.tick(FPS)
 
-def run(world, screen, clock, colors):
+def run(world, balls, edges, screen, clock, colors):
     '''Main game loop.'''
-    background_color = (20, 130, 57)
     running=True
     while running:
         # Check for close event
@@ -145,14 +177,12 @@ def run(world, screen, clock, colors):
             if event.type==QUIT:
                 running=False
 
-        # Draw the table background
-        screen.fill(background_color)
-
         # Apply friction forces to balls, and draw the edges and balls
         for i, body in enumerate(world.bodies):
             apply_friction(body)
-            body.fixtures[0].shape.draw(screen, body, b2Fixture, colors[i])
 
+        draw(world, balls, edges, screen, clock, colors)
+        
         for contact in world.contacts:
             if contact.touching:
                 print contact
@@ -168,6 +198,14 @@ def run(world, screen, clock, colors):
 def rand_color():
     return (randrange(15,240), randrange(15,240), randrange(15, 240))
 
+def select_shot(cue, balls):
+    for target in balls:
+        v = target.body.position - cue.body.position
+        a = v[0] * v[0] + v[1] * v[1]
+        b = 2
+        # t = 
+    return (-200 + randrange(200), -200 + randrange(200))
+
 def main():
     # Set up the table and balls
     screen, clock = setup_pygame('Physics!')
@@ -177,27 +215,33 @@ def main():
     pockets = make_pockets(world)
 
     # For now, make random ball colors
-    colors = [(150, 111, 51)]*4 + [(255, 255, 255)] + [rand_color() for x in range(4)] + [(0, 0, 0)] + [rand_color() for x in range(10)] + [(0, 0, 0)]*6
+    colors = [(150, 111, 51)] * 4  # edges
+    colors += [(255, 255, 255)] # Cue ball?
+    colors += [rand_color() for x in range(4)]  #balls
+    colors += [(0, 0, 0)]  # 8 ball
+    colors += [rand_color() for x in range(10)] #balls
+    colors += [(0, 0, 0)]*6 # Pockets
 
     # Break (hit the cue ball)
     cue_ball = balls[0]
-    force = (-550.0, 0.0)
-    cue_ball.body.ApplyForce(force=force, point=cue_ball.body.position, wake=True)
-    # for x  10
-    # simulate(world)
+
+    force = (-200.0, 0.0)
+    draw(world, balls, edges, screen, clock, colors)
 
     # Run the simulation
-    run(world, screen, clock, colors)
-    # force = (-200.0, 0.0)
-    # draw(world, screen, clock, colors)
+    # run(world, screen, clock, colors)
 
-    # # Do 10 random shots
-    # for x in range(10):
-    #     draw(world, screen, clock, colors)
-    #     raw_input("Press enter to apply next shot")
-    #     cue_ball.body.ApplyForce(force=force, point=cue_ball.body.position, wake=True)
-    #     simulate(world)
-    #     force = (100 + randrange(0, 50), 100 + randrange(0, 50))
-
+    N = 30
+     # Do N random shots
+    s = time.time()
+    for x in range(N):
+        draw(world, balls, edges, screen, clock, colors)
+        # raw_input("Press enter to apply next shot")
+        cue_ball.body.ApplyForce(force=force, point=cue_ball.body.position, wake=True)
+        simulate(world, balls, edges, pockets, colors, screen, clock, True)
+        force = select_shot(cue_ball, balls)
+    f = time.time()
+    print (f - s)/N
+        
 if __name__ == '__main__':
     main()
