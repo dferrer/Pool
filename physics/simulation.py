@@ -115,13 +115,6 @@ def is_moving(world):
             return True
     return False
 
-def isMade(ball, pockets):
-    for pocket in pockets:
-        d = ball.body.position - pocket.position
-        if(d[0]**2 + d[1]**2 < (1.3 * POCKET_RADIUS)**2):
-            return True
-    return False
-
 def removeBall(ball, balls):
     ball.body.position = (5, 5)
     ball.body.linearVelocity[0] = ball.body.linearVelocity[1] = 0
