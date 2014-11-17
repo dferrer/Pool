@@ -1,6 +1,6 @@
-import pygame
+import pygame, sys
 from pygame.locals import QUIT
-from math import atan2, cos, degrees, pi, sin
+from math import atan2, cos, degrees, pi, sin, sqrt
 from Box2D import b2CircleShape, b2Fixture, b2PolygonShape, b2World
 from random import randrange
 from scipy.constants import g
@@ -31,14 +31,14 @@ def draw_polygon(polygon, screen, body, fixture, color):
 
 def draw_circle(circle, screen, body, fixture, color):
     '''Extend the shape class to use pygame for drawing circles.'''
-    position=body.transform*circle.pos*PPM
-    points=(position[0], SCREEN_HEIGHT-position[1])
-    pygame.draw.circle(screen, color, [int(x) for x in points], int(circle.radius*PPM))
+    position = body.transform * circle.pos * PPM
+    points = (position[0], SCREEN_HEIGHT - position[1])
+    pygame.draw.circle(screen, color, map(int, points), int(circle.radius * PPM))
 
 def draw_ball(circle, number, screen, body, fixture, color):
-    position=body.transform*circle.pos*PPM
-    points=(position[0], SCREEN_HEIGHT-position[1])
-    coords = [int(x) for x in points]
+    position = body.transform * circle.pos * PPM
+    points = (position[0], SCREEN_HEIGHT-position[1])
+    coords = map(int, points)
     pygame.draw.circle(screen, color, coords, int(circle.radius*PPM))
     myfont = pygame.font.SysFont("monospace", 15)
     label = myfont.render(str(number), 1, (255,255,255))
@@ -93,8 +93,8 @@ def make_balls(world):
     other_balls = [make_ball(world, pos, BALL_DENSITY) for pos in positions]
     return [cue_ball] + other_balls
 
-def unit(vel):
-    return vel / (vel[0]**2 + vel[1]**2)**(1/2)
+def unit(vector):
+    return vector / sqrt(vector[0]**2 + vector[1]**2)
 
 def apply_friction(body):
     '''Calculate and apply the frictional force on a body.'''
@@ -125,6 +125,9 @@ def removeBall(ball, balls):
 def simulate(world, balls, edges, pockets, colors, screen, clock, do_draw):
     world.Step(TIME_STEP, 10, 10)
     while is_moving(world):
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                sys.exit()
         # Apply friction forces to balls
         for i, body in enumerate(world.bodies):
             apply_friction(body)
@@ -169,9 +172,9 @@ def rand_color():
     return (randrange(15,240), randrange(15,240), randrange(15, 240))
 
 def select_shot(cue, balls):
-    for i in range(1, len(balls)):
-        if(balls[i].body.position[0] < 2.5 and balls[i].body.position[1] < 2.5):
-            return 200 * (balls[i].body.position - cue.body.position)
+    for ball in balls[1:]:
+        if ball.body.position[0] < 2.5 and ball.body.position[1] < 2.5:
+            return 200 * (ball.body.position - cue.body.position)
     return (0, -200)
 
 def main():
@@ -184,17 +187,16 @@ def main():
 
     # For now, make random ball colors
     colors = [(150, 111, 51)] * 4  # edges
-    colors += [(255, 255, 255)] # Cue ball?
-    colors += [rand_color() for x in range(4)]  #balls
-    colors += [(0, 0, 0)]  # 8 ball
-    colors += [rand_color() for x in range(10)] #balls
-    colors += [(0, 0, 0)]*6 # Pockets
+    colors.append((255, 255, 255)) # Cue ball
+    colors.extend([rand_color() for x in range(4)])  # balls
+    colors.append((0, 0, 0))  # 8 ball
+    colors.extend([rand_color() for x in range(10)]) #balls
+    colors.extend([(0, 0, 0)]*6) # Pockets
 
-    animate = False
+    animate = True
 
     # Break (hit the cue ball)
     cue_ball = balls[0]
-
     force = (-200.0, 0.0)
     draw(world, balls, edges, screen, clock, colors)
 
