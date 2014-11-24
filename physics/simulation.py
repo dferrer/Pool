@@ -94,15 +94,20 @@ def make_ball(world, position, density):
     ball = body.CreateCircleFixture(radius=BALL_RADIUS, density=CUE_BALL_DENSITY, restitution=RESTITUTION, friction=FRICTION)#, typ='ball')
     return ball
 
-def make_balls(world):
-    '''Create a cue ball and 10 other balls.'''
+def break_positions():
     wbase = TABLE_WIDTH / 2.0 - 0.5
     hbase = TABLE_HEIGHT / 2.0
-    positions = [(wbase, hbase), \
+    return [(wbase, hbase), \
                  (wbase - .05, hbase + .025), (wbase - .05, hbase - .025), \
                  (wbase - .10, hbase + .050), (wbase - .10, hbase),        (wbase - .10, hbase - .050), \
                  (wbase - .15, hbase + .075), (wbase - .15, hbase + .025), (wbase - .15, hbase - .025), (wbase - .15, hbase - .075), \
                  (wbase - .20, hbase + .100), (wbase - .20, hbase + .050), (wbase - .20, hbase),        (wbase - .20, hbase - .050), (wbase - .20, hbase - .100)]
+
+def restore_balls(world, positions):
+    return [make_ball(world, pos, BALL_DENSITY) for pos in positions]
+
+def make_balls(world, positions=break_positions()):
+    '''Create a cue ball and 10 other balls.'''
     cue_ball = make_ball(world, position=(TABLE_WIDTH / 2.0 + TABLE_WIDTH / 4.0 + 0.4, TABLE_HEIGHT / 2.0), density=CUE_BALL_DENSITY)
     other_balls = [make_ball(world, pos, BALL_DENSITY) for pos in positions]
     return [cue_ball] + other_balls
@@ -134,7 +139,7 @@ def remove(ball):
     ball.linearVelocity[0] = 0 
     ball.linearVelocity[1] = 0
 
-def simulate(world, balls, edges, pockets, colors, screen, clock, do_draw):
+def simulate(world, balls, edges, colors, screen, clock, do_draw):
     world.Step(TIME_STEP, 10, 10)
     while is_moving(world):
         # Check for quit event
@@ -158,6 +163,7 @@ def simulate(world, balls, edges, pockets, colors, screen, clock, do_draw):
     if abs(balls[0].body.position[0] - 5) < .0001 and abs(balls[0].body.position[1] - 5) < .0001: 
         print "scratch"
         balls[0].body.position = (TABLE_WIDTH / 2.0 + TABLE_WIDTH / 4.0 + 0.4, TABLE_HEIGHT / 2.0)
+
     return world
 
 def draw(world, balls, edges, screen, clock, colors):
@@ -180,10 +186,20 @@ def draw(world, balls, edges, screen, clock, colors):
 def rand_color():
     return (randrange(15,240), randrange(15,240), randrange(15, 240))
 
-def select_shot(cue, balls):
+def dot(a, b):
+    return a[0] * b[0] + a[1] * b[1]
+
+def calc_shot(C, T, P):
+    return T + unit(P - T) * BALL_RADIUS - C
+
+def possible_pockets(C, T, pockets):
+    return filter(lambda P: dot((P - T), (T - C)) > 0, pockets)
+
+def select_shot(cue, balls, pockets):
     for ball in balls[1:]:
-        if ball.body.position[0] < 2.5 and ball.body.position[1] < 2.5:
-            return 200 * (ball.body.position - cue.body.position)
+        if ball.body.position[0] < TABLE_WIDTH and ball.body.position[1] < TABLE_HEIGHT:
+            ps = possible_pockets(cue.body.position, ball.body.position, pockets)
+            return 100 * calc_shot(cue.body.position, ball.body.position, ps[0])
     return (0, -200)
 
 class ContactListener(b2ContactListener):
@@ -204,6 +220,20 @@ class ContactListener(b2ContactListener):
             elif type(contact.fixtureB.shape) is b2PolygonShape and len(contact.fixtureB.shape.vertices) == 14:
                 self.to_destroy.append(contact.fixtureA.body)
 
+def ball_positions(balls):
+    c = []
+    for ball in balls:
+        c.append((ball.body.position[0], ball.body.position[1]))
+    return c
+
+def restore_world(positions):
+    print "\n\nrestoring world\n\n"
+    w = setup_box2D()
+    edges = make_table(w)
+    pockets = make_pockets(w)
+    balls = restore_balls(w, positions)
+    return w
+
 def main():
     # Set up the table and balls
     screen, clock = setup_pygame('Physics!')
@@ -211,6 +241,7 @@ def main():
     edges = make_table(world)
     balls = make_balls(world)
     pockets = make_pockets(world)
+    pocket_positions = map(lambda p: p.position, pockets)
 
     # For now, make random ball colors
     colors = [(150, 111, 51)] * 4  # Edges
@@ -225,16 +256,18 @@ def main():
     # Break (hit the cue ball)
     cue_ball = balls[0]
     force = (-200.0, 0.0)
-    draw(world, balls, edges, screen, clock, colors)
+    # draw(world, balls, edges, screen, clock, colors)
 
     N = 30
      # Do N random shots
     s = time.time()
     for x in range(N):
         cue_ball.body.ApplyForce(force=force, point=cue_ball.body.position, wake=True)
-        simulate(world, balls, edges, pockets, colors, screen, clock, animate)
-        force = select_shot(cue_ball, balls)
-        raw_input('Press enter to simulate the next shot')
+        simulate(world, balls, edges, colors, screen, clock, animate)
+        # positions = ball_positions(balls)
+        # restore_world(positions)
+        force = select_shot(cue_ball, balls, pocket_positions)
+        # raw_input('Press enter to simulate the next shot')
     f = time.time()
     print (f - s)/N
         
