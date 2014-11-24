@@ -4,7 +4,7 @@ from math import atan2, cos, degrees, pi, sin, sqrt, radians
 from Box2D import b2CircleShape, b2Fixture, b2PolygonShape, b2World, b2ContactListener, b2Vec2
 from random import randrange
 from scipy.constants import g
-# from contact import ContactListener
+from contact import ContactListener
 
 PPM = 400.0 # Pixels per meter, since Box2D uses meters but pygame uses pixels for drawing
 FPS = 60 # Frames per second
@@ -35,15 +35,6 @@ def draw_circle(circle, screen, body, fixture, color):
     points = (position[0], SCREEN_HEIGHT - position[1])
     pygame.draw.circle(screen, color, map(int, points), int(circle.radius * PPM))
 
-def draw_ball(circle, number, screen, body, fixture, color):
-    position = body.transform * circle.pos * PPM
-    points = (position[0], SCREEN_HEIGHT-position[1])
-    coords = map(int, points)
-    pygame.draw.circle(screen, color, coords, int(circle.radius*PPM))
-    myfont = pygame.font.SysFont("monospace", 15)
-    label = myfont.render(str(number), 1, (255,255,255))
-    screen.blit(label, coords)
-
 def setup_pygame(message):
     '''Make a Pygame screen and clock.'''
     dimensions = (SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -53,7 +44,7 @@ def setup_pygame(message):
     return screen, clock
 
 def setup_box2D():
-    '''Create Box2D world.'''    
+    '''Create Box2D world.'''
     world = b2World(gravity=(0, 0), doSleep=True, contactListener=ContactListener()) # Turn off gravity
     b2PolygonShape.draw = draw_polygon
     b2CircleShape.draw = draw_circle
@@ -63,7 +54,8 @@ def make_table(world):
     '''Create static bodies to represent the edges of the table.'''
     positions = [(TABLE_WIDTH / 2.0, EDGE_WIDTH), (EDGE_WIDTH,TABLE_HEIGHT / 2), (TABLE_WIDTH - EDGE_WIDTH,TABLE_HEIGHT / 2), (TABLE_WIDTH / 2.0, TABLE_HEIGHT - EDGE_WIDTH)]
     dimensions = [(TABLE_WIDTH / 2,EDGE_WIDTH), (EDGE_WIDTH, TABLE_HEIGHT / 2), (EDGE_WIDTH, TABLE_HEIGHT / 2), (TABLE_WIDTH / 2, EDGE_WIDTH)]
-    edges = [world.CreateStaticBody(position=pos, shapes=b2PolygonShape(box=dim), restitution=RESTITUTION) for pos, dim in zip(positions, dimensions)]
+    edge_color = (150, 111, 51)
+    edges = [world.CreateStaticBody(position=pos, shapes=b2PolygonShape(box=dim), restitution=RESTITUTION, userData=edge_color) for pos, dim in zip(positions, dimensions)]
     for edge in edges:
         edge.fixtures[0].friction = FRICTION
     return edges
@@ -81,17 +73,17 @@ def make_pockets(world):
                  (TABLE_WIDTH - EDGE_WIDTH * 2, EDGE_WIDTH * 2), 
                  (TABLE_WIDTH - EDGE_WIDTH * 2, TABLE_HEIGHT - EDGE_WIDTH * 2), 
                  (EDGE_WIDTH * 2, TABLE_HEIGHT - EDGE_WIDTH * 2)]
-    num_vertices = 12
     offsets = [0.0, 90.0, 180.0, 270.0]
-    vertices = [get_vertices(num_vertices, offset) for offset in offsets]
+    vertices = [get_vertices(12, offset) for offset in offsets]
     shapes = [b2PolygonShape(vertices=verts) for verts in vertices]
-    pockets = [world.CreateStaticBody(position=pos, shapes=shape, restitution=RESTITUTION) for pos, shape in zip(positions, shapes)]
+    color = (0, 0, 0)
+    pockets = [world.CreateStaticBody(position=pos, shapes=shape, restitution=RESTITUTION, userData=color) for pos, shape in zip(positions, shapes)]
     return pockets
 
-def make_ball(world, position, density):
+def make_ball(world, position, density, color):
     '''Create a dynamic body to respresent a ball.'''
-    body = world.CreateDynamicBody(position=position, bullet=True)
-    ball = body.CreateCircleFixture(radius=BALL_RADIUS, density=CUE_BALL_DENSITY, restitution=RESTITUTION, friction=FRICTION)#, typ='ball')
+    body = world.CreateDynamicBody(position=position, bullet=True, userData=color)
+    ball = body.CreateCircleFixture(radius=BALL_RADIUS, density=CUE_BALL_DENSITY, restitution=RESTITUTION, friction=FRICTION)
     return ball
 
 def make_balls(world):
@@ -100,11 +92,12 @@ def make_balls(world):
     hbase = TABLE_HEIGHT / 2.0
     positions = [(wbase, hbase), \
                  (wbase - .05, hbase + .025), (wbase - .05, hbase - .025), \
-                 (wbase - .10, hbase + .050), (wbase - .10, hbase),        (wbase - .10, hbase - .050), \
+                 (wbase - .10, hbase + .050),        (wbase - .10, hbase - .050), \
                  (wbase - .15, hbase + .075), (wbase - .15, hbase + .025), (wbase - .15, hbase - .025), (wbase - .15, hbase - .075), \
                  (wbase - .20, hbase + .100), (wbase - .20, hbase + .050), (wbase - .20, hbase),        (wbase - .20, hbase - .050), (wbase - .20, hbase - .100)]
-    cue_ball = make_ball(world, position=(TABLE_WIDTH / 2.0 + TABLE_WIDTH / 4.0 + 0.4, TABLE_HEIGHT / 2.0), density=CUE_BALL_DENSITY)
-    other_balls = [make_ball(world, pos, BALL_DENSITY) for pos in positions]
+    cue_ball = make_ball(world, position=(TABLE_WIDTH / 2.0 + TABLE_WIDTH / 4.0 + 0.4, TABLE_HEIGHT / 2.0), density=CUE_BALL_DENSITY, color=(255,255,255))
+    eight_ball = make_ball(world, position=(wbase - .10, hbase), density=CUE_BALL_DENSITY, color=(0,0,0))
+    other_balls = [make_ball(world, pos, BALL_DENSITY, color=rand_color()) for pos in positions]
     return [cue_ball] + other_balls
 
 def unit(vector):
@@ -123,6 +116,7 @@ def apply_friction(body):
             dv = -MU * g * unit(body.linearVelocity) * TIME_STEP
             body.linearVelocity += dv;
 
+
 def is_moving(world):
     for i, body in enumerate(world.bodies):
         if abs(body.linearVelocity[0]) > 0 or abs(body.linearVelocity[1] > 0):
@@ -134,7 +128,7 @@ def remove(ball):
     ball.linearVelocity[0] = 0 
     ball.linearVelocity[1] = 0
 
-def simulate(world, balls, edges, pockets, colors, screen, clock, do_draw):
+def simulate(world, balls, edges, pockets, screen, clock, do_draw):
     world.Step(TIME_STEP, 10, 10)
     while is_moving(world):
         # Check for quit event
@@ -143,35 +137,32 @@ def simulate(world, balls, edges, pockets, colors, screen, clock, do_draw):
                 sys.exit()
 
         # Apply friction forces to balls
-        for i, body in enumerate(world.bodies):
-            apply_friction(body)
+        map(apply_friction, world.bodies)
 
-        # Simulate the next step of the Box2D world and destroy balls in the destroy queue (i.e. balls that touched pockets)
+        # Simulate the next step of the Box2D world and destroy balls in the destroy queue (i.e. balls that touched a pocket)
         world.Step(TIME_STEP, 10, 10)
         world.contactListener.DestroyBalls(world)
         world.ClearForces()
 
         # Draw the world
         if do_draw:
-            draw(world, balls, edges, screen, clock, colors)
+            draw(world, balls, edges, screen, clock)
 
     if abs(balls[0].body.position[0] - 5) < .0001 and abs(balls[0].body.position[1] - 5) < .0001: 
         print "scratch"
         balls[0].body.position = (TABLE_WIDTH / 2.0 + TABLE_WIDTH / 4.0 + 0.4, TABLE_HEIGHT / 2.0)
     return world
 
-def draw(world, balls, edges, screen, clock, colors):
+def draw(world, balls, edges, screen, clock):
     '''Main game loop.'''
     background_color = (20, 130, 57)
-    # DERP
-    pygame.event.get()
 
     # Draw the table background
     screen.fill(background_color)
     
     # Draw balls and edges!
-    for i, body in enumerate(world.bodies):
-        body.fixtures[0].shape.draw(screen, body, b2Fixture, colors[i])
+    for body in world.bodies:
+        body.fixtures[0].shape.draw(screen, body, b2Fixture, body.userData)
     
     # Display. Tick the clock in increments of the FPS variable
     pygame.display.flip()
@@ -186,24 +177,6 @@ def select_shot(cue, balls):
             return 200 * (ball.body.position - cue.body.position)
     return (0, -200)
 
-class ContactListener(b2ContactListener):
-    def __init__(self):
-        b2ContactListener.__init__(self)
-        self.to_destroy = []
-
-    def DestroyBalls(self, world):
-        for ball in self.to_destroy:
-            remove(ball)
-            # world.DestroyBody(ball)
-        self.to_destroy = []
-
-    def PreSolve(self, contact, _):
-        if contact.touching:
-            if type(contact.fixtureA.shape) is b2PolygonShape and len(contact.fixtureA.shape.vertices) == 14:
-                self.to_destroy.append(contact.fixtureB.body)
-            elif type(contact.fixtureB.shape) is b2PolygonShape and len(contact.fixtureB.shape.vertices) == 14:
-                self.to_destroy.append(contact.fixtureA.body)
-
 def main():
     # Set up the table and balls
     screen, clock = setup_pygame('Physics!')
@@ -212,27 +185,19 @@ def main():
     balls = make_balls(world)
     pockets = make_pockets(world)
 
-    # For now, make random ball colors
-    colors = [(150, 111, 51)] * 4  # Edges
-    colors.append((255, 255, 255)) # Cue ball
-    colors.extend([rand_color() for x in range(4)])  # Balls
-    colors.append((0, 0, 0))  # 8 ball
-    colors.extend([rand_color() for x in range(10)]) # More balls
-    colors.extend([(0, 0, 0)]*6) # Pockets
-
     animate = True
 
     # Break (hit the cue ball)
     cue_ball = balls[0]
     force = (-200.0, 0.0)
-    draw(world, balls, edges, screen, clock, colors)
+    draw(world, balls, edges, screen, clock)
 
     N = 30
      # Do N random shots
     s = time.time()
     for x in range(N):
         cue_ball.body.ApplyForce(force=force, point=cue_ball.body.position, wake=True)
-        simulate(world, balls, edges, pockets, colors, screen, clock, animate)
+        simulate(world, balls, edges, pockets, screen, clock, animate)
         force = select_shot(cue_ball, balls)
         raw_input('Press enter to simulate the next shot')
     f = time.time()
