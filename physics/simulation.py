@@ -112,8 +112,14 @@ def make_balls(world, positions=break_positions()):
     other_balls = [make_ball(world, pos, BALL_DENSITY) for pos in positions]
     return [cue_ball] + other_balls
 
+def length(vector):
+    return sqrt(vector[0]**2 + vector[1]**2)
+
 def unit(vector):
-    return vector / sqrt(vector[0]**2 + vector[1]**2)
+    return vector / length(vector)
+
+def dot(a, b):
+    return a[0] * b[0] + a[1] * b[1]
 
 def apply_friction(body):
     '''Calculate and apply the frictional force on a body.'''
@@ -186,20 +192,23 @@ def draw(world, balls, edges, screen, clock, colors):
 def rand_color():
     return (randrange(15,240), randrange(15,240), randrange(15, 240))
 
-def dot(a, b):
-    return a[0] * b[0] + a[1] * b[1]
-
-def calc_shot(C, T, P):
-    return T + unit(P - T) * BALL_RADIUS - C
-
 def possible_pockets(C, T, pockets):
-    return filter(lambda P: dot((P - T), (T - C)) > 0, pockets)
+    dot_pockets = sorted(map(lambda P: (dot((P - T), (T - C)), P), pockets), reverse=True)
+    return map(lambda P: P[1], filter(lambda P: P[0] > 0, dot_pockets))
+
+def shot(C, T, P):
+    print "--------\n"
+    print C, T, P
+    print "Power: ", length(T - C) + length(P - T)
+    print "Direction: ", unit(T + unit(T - P) * BALL_RADIUS - C)
+    print "Desired Position: ", T + unit(T - P) * BALL_RADIUS, 
+    return 50 * unit(T + unit(T - P) * BALL_RADIUS - C) 
 
 def select_shot(cue, balls, pockets):
     for ball in balls[1:]:
         if ball.body.position[0] < TABLE_WIDTH and ball.body.position[1] < TABLE_HEIGHT:
             ps = possible_pockets(cue.body.position, ball.body.position, pockets)
-            return 100 * calc_shot(cue.body.position, ball.body.position, ps[0])
+            return shot(cue.body.position, ball.body.position, ps[0])
     return (0, -200)
 
 class ContactListener(b2ContactListener):
@@ -267,6 +276,7 @@ def main():
         # positions = ball_positions(balls)
         # restore_world(positions)
         force = select_shot(cue_ball, balls, pocket_positions)
+        # pygame.draw.line(screen, (255, 0, 0), map(int, PPM*cue_ball.body.position), map(int, PPM*(cue_ball.body.position + force)), 25)
         # raw_input('Press enter to simulate the next shot')
     f = time.time()
     print (f - s)/N
