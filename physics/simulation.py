@@ -197,18 +197,15 @@ def possible_pockets(C, T, pockets):
     return map(lambda P: P[1], filter(lambda P: P[0] > 0, dot_pockets))
 
 def shot(C, T, P):
-    print "--------\n"
-    print C, T, P
-    print "Power: ", length(T - C) + length(P - T)
-    print "Direction: ", unit(T + unit(T - P) * BALL_RADIUS - C)
-    print "Desired Position: ", T + unit(T - P) * BALL_RADIUS, 
-    return 50 * unit(T + unit(T - P) * BALL_RADIUS - C) 
+    return 50 * unit(T + unit(T - P) * BALL_RADIUS * 2.0 - C) 
 
 def select_shot(cue, balls, pockets):
     for ball in balls[1:]:
         if ball.body.position[0] < TABLE_WIDTH and ball.body.position[1] < TABLE_HEIGHT:
             ps = possible_pockets(cue.body.position, ball.body.position, pockets)
-            return shot(cue.body.position, ball.body.position, ps[0])
+            s = shot(cue.body.position, ball.body.position, ps[0])
+            return s
+            
     return (0, -200)
 
 class ContactListener(b2ContactListener):
@@ -265,7 +262,6 @@ def main():
     # Break (hit the cue ball)
     cue_ball = balls[0]
     force = (-200.0, 0.0)
-    # draw(world, balls, edges, screen, clock, colors)
 
     N = 30
      # Do N random shots
@@ -276,7 +272,6 @@ def main():
         # positions = ball_positions(balls)
         # restore_world(positions)
         force = select_shot(cue_ball, balls, pocket_positions)
-        # pygame.draw.line(screen, (255, 0, 0), map(int, PPM*cue_ball.body.position), map(int, PPM*(cue_ball.body.position + force)), 25)
         # raw_input('Press enter to simulate the next shot')
     f = time.time()
     print (f - s)/N
