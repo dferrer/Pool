@@ -121,6 +121,12 @@ def unit(vector):
 def dot(a, b):
     return a[0] * b[0] + a[1] * b[1]
 
+def num_made(balls):
+    return map(is_made, balls).count(True)
+
+def is_made(ball):
+    return abs(ball.body.position[0] - 5) < .0001 and abs(ball.body.position[1] - 5) < .0001
+
 def apply_friction(body):
     '''Calculate and apply the frictional force on a body.'''
     x_vel, y_vel = body.linearVelocity[0], body.linearVelocity[1]
@@ -193,18 +199,42 @@ def rand_color():
     return (randrange(15,240), randrange(15,240), randrange(15, 240))
 
 def possible_pockets(C, T, pockets):
-    dot_pockets = sorted(map(lambda P: (dot((P - T), (T - C)), P), pockets), reverse=True)
+    dot_pockets = sorted(map(lambda P: (dot(unit(P - T), unit(T - C)), P), pockets), reverse=True)
     return map(lambda P: P[1], filter(lambda P: P[0] > 0, dot_pockets))
 
 def shot(C, T, P):
-    return 50 * unit(T + unit(T - P) * BALL_RADIUS * 2.0 - C) 
+    return 50 * unit(T + unit(T - P) * BALL_RADIUS * 1.75 - C) 
+
+# What's your vector, victor?
+def vector_ball_intersect(D, O, B):
+    a = 1
+    b = dot(2*D, O - B)
+    c = length(O - B)**2 - (2 * BALL_RADIUS)**2
+    return b**2 - 4*a*c >= 0
+
+def is_unobstructed(C, T, P, balls):
+    CT = T - C #path to target
+    TP = P - T #target to pocket
+    for b in balls[1:]:
+        d = b.body.position - T
+        # check that b !== T
+        if d[0] > .0001 and d[1] > .0001:
+            if vector_ball_intersect(CT, C, b.body.position) or \
+               vector_ball_intersect(TP, T, b.body.position):
+                return False
+    return True
+
 
 def select_shot(cue, balls, pockets):
+    C = cue.body.position
     for ball in balls[1:]:
-        if ball.body.position[0] < TABLE_WIDTH and ball.body.position[1] < TABLE_HEIGHT:
-            ps = possible_pockets(cue.body.position, ball.body.position, pockets)
-            s = shot(cue.body.position, ball.body.position, ps[0])
-            return s
+        T = ball.body.position
+        if T[0] < TABLE_WIDTH and T[1] < TABLE_HEIGHT:
+            ps = possible_pockets(C, T, pockets)
+            for P in ps:
+                if is_unobstructed(C, T, P, balls):
+                    s = shot(C, T, P)
+                    return s
             
     return (0, -200)
 
@@ -216,7 +246,6 @@ class ContactListener(b2ContactListener):
     def DestroyBalls(self, world):
         for ball in self.to_destroy:
             remove(ball)
-            # world.DestroyBody(ball)
         self.to_destroy = []
 
     def PreSolve(self, contact, _):
@@ -257,24 +286,29 @@ def main():
     colors.extend([rand_color() for x in range(10)]) # More balls
     colors.extend([(0, 0, 0)]*6) # Pockets
 
-    animate = True
+    animate = False
 
     # Break (hit the cue ball)
     cue_ball = balls[0]
     force = (-200.0, 0.0)
 
-    N = 30
+    n = -1
      # Do N random shots
     s = time.time()
-    for x in range(N):
+    made = 0
+    while made < 15:
+        n += 1
         cue_ball.body.ApplyForce(force=force, point=cue_ball.body.position, wake=True)
         simulate(world, balls, edges, colors, screen, clock, animate)
+        made = num_made(balls)
+        print "We've made: ", made
         # positions = ball_positions(balls)
         # restore_world(positions)
         force = select_shot(cue_ball, balls, pocket_positions)
         # raw_input('Press enter to simulate the next shot')
     f = time.time()
-    print (f - s)/N
+    print "It took", n, "shots to make all balls."
+    print (f - s)/n
         
 if __name__ == '__main__':
     main()
