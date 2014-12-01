@@ -204,7 +204,9 @@ def possible_pockets(C, T, pockets):
                       pockets))
 
 def shot(C, T, P):
-    return 100 * unit(T + unit(T - P) * BALL_RADIUS * 1.5 - C) 
+    direction = unit(T + unit(T - P) * BALL_RADIUS * 1.5 - C)
+    power = 100 / dot(unit(P - T), unit(T - C))
+    return power * direction
 
 # What's your vector, victor?
 def vector_ball_intersect(D, O, B):
