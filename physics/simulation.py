@@ -172,11 +172,12 @@ def simulate(world, balls, edges, colors, screen, clock, do_draw):
         if do_draw:
             draw(world, balls, edges, screen, clock, colors)
 
+    scratch = False
     if abs(balls[0].body.position[0] - 5) < .0001 and abs(balls[0].body.position[1] - 5) < .0001: 
-        print "scratch"
+        scratch = True
         balls[0].body.position = (TABLE_WIDTH / 2.0 + TABLE_WIDTH / 4.0 + 0.4, TABLE_HEIGHT / 2.0)
 
-    return world
+    return (world, scratch)
 
 def draw(world, balls, edges, screen, clock, colors):
     '''Main game loop.'''
@@ -205,8 +206,20 @@ def possible_pockets(C, T, pockets):
 
 def shot(C, T, P):
     direction = unit(T + unit(T - P) * BALL_RADIUS * 1.5 - C)
-    power = 100 / dot(unit(P - T), unit(T - C))
+    power = min(100 / dot(unit(P - T), unit(T - C)), 150)
     return power * direction
+
+def break_shot(cue, target):
+    print "Breaking from", cue.body.position[0], cue.body.position[1]
+    return unit(target.body.position - cue.body.position) * 200
+
+def set_cue_position(cue):
+    if "-b" in sys.argv:
+        i = sys.argv.index("-b")
+        cue.body.position[0] = float(sys.argv[i+1])
+        cue.body.position[1] = float(sys.argv[i+2])
+    else:
+        cue.body.position += (randrange(-100, 100) * .001, randrange(-100, 100) * .001)
 
 # Check if a line segment intersects with a circle.
 def vector_ball_intersect(position, radius, source, finish):
@@ -214,7 +227,6 @@ def vector_ball_intersect(position, radius, source, finish):
     # Thus, we normalize by subtracting the position of the ball from the source and finish positions.
     source_normal = source - position
     finish_normal = finish - position
-    print position, source, finish
 
     # Rename some things.
     x_1 = source_normal[0]
@@ -228,7 +240,6 @@ def vector_ball_intersect(position, radius, source, finish):
     delta = 4 * radius**2 * d_r**2 - det**2
 
     # Check for intersection.
-    print delta, position
     return delta >= 0
 
 def is_unobstructed(cue, target, pocket, balls):
@@ -236,14 +247,13 @@ def is_unobstructed(cue, target, pocket, balls):
     CT = target - cue # path to target
     TP = pocket - target # target to pocket
     for b in balls[1:]:
-        if b.body.position[0] == 5 and b.body.position[1] == 5:
-            continue
-        d = b.body.position - target
+        if b.body.position[0] != 5 and b.body.position[1] != 5:
+            d = b.body.position - target
 
-        # check that b !== T
-        if abs(d[0]) > .0001 and abs(d[1]) > .0001:
-            if vector_ball_intersect(b.body.position, b.shape.radius, cue, target) or vector_ball_intersect(b.body.position, b.shape.radius, target, pocket):
-                return False
+            # check that b !== T
+            if abs(d[0]) > .0001 and abs(d[1]) > .0001:
+                if vector_ball_intersect(b.body.position, b.shape.radius, cue, target) or vector_ball_intersect(b.body.position, b.shape.radius, target, pocket):
+                    return False
     return True
 
 def select_shot(cue, balls, pockets):
@@ -258,10 +268,10 @@ def select_shot(cue, balls, pockets):
 
     for (DP, T, P) in possible:
         if is_unobstructed(C, T, P, balls):
-            s = shot(C, T, P)
-            return s
-            
-    return (50, 50)
+            return shot(C, T, P)
+
+    print "No unobstructed shots found :("
+    return shot(C, possible[0][1], possible[0][2])
 
 class ContactListener(b2ContactListener):
     def __init__(self):
@@ -311,30 +321,41 @@ def main():
     colors.extend([rand_color() for x in range(10)]) # More balls
     colors.extend([(0, 0, 0)]*6) # Pockets
 
-    animate = True
-    # animate = True if len(sys.argv) > 1 and sys.argv[1] == "-a" else False
+    # animate = True
+    animate = True if "-a" in sys.argv else False
 
     # Break (hit the cue ball)
     cue_ball = balls[0]
-    force = (-200.0, 0.0)
+    set_cue_position(cue_ball)
+    force = break_shot(cue_ball, balls[1])
 
     n = -1
      # Do N random shots
-    s = time.time()
+    start = time.time()
     made = 0
+    misses = 0
+    scratches = 0
     while made < 15:
         n += 1
         cue_ball.body.ApplyForce(force=force, point=cue_ball.body.position, wake=True)
-        simulate(world, balls, edges, colors, screen, clock, animate)
-        made = num_made(balls)
+        (w, s) = simulate(world, balls, edges, colors, screen, clock, animate)
+        if s:
+            scratches += 1
+        m = num_made(balls)
+        if m == made:
+            misses += 1
+        made = m
         print "We've made: ", made
         # positions = ball_positions(balls)
         # restore_world(positions)
-        force = select_shot(cue_ball, balls, pocket_positions)
+        if made < 15:
+            force = select_shot(cue_ball, balls, pocket_positions)
         # raw_input('Press enter to simulate the next shot')
-    f = time.time()
+    finish = time.time()
     print "It took", n, "shots to make all balls."
-    print (f - s)/n
+    print "We missed", misses, " times."
+    print "We scratched", scratches, " times."
+    print (finish - start)/n
         
 if __name__ == '__main__':
     main()
