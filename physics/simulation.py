@@ -199,11 +199,12 @@ def rand_color():
     return (randrange(15,240), randrange(15,240), randrange(15, 240))
 
 def possible_pockets(C, T, pockets):
-    dot_pockets = sorted(map(lambda P: (dot(unit(P - T), unit(T - C)), P), pockets), reverse=True)
-    return map(lambda P: P[1], filter(lambda P: P[0] > 0, dot_pockets))
+    return filter(lambda P: P[0] > 0.0, \
+                  map(lambda P: (dot(unit(P - T), unit(T - C)), T, P), \
+                      pockets))
 
 def shot(C, T, P):
-    return 50 * unit(T + unit(T - P) * BALL_RADIUS * 1.75 - C) 
+    return 100 * unit(T + unit(T - P) * BALL_RADIUS * 1.5 - C) 
 
 # What's your vector, victor?
 def vector_ball_intersect(D, O, B):
@@ -224,19 +225,22 @@ def is_unobstructed(C, T, P, balls):
                 return False
     return True
 
-
 def select_shot(cue, balls, pockets):
     C = cue.body.position
+    possible = []
     for ball in balls[1:]:
         T = ball.body.position
         if T[0] < TABLE_WIDTH and T[1] < TABLE_HEIGHT:
-            ps = possible_pockets(C, T, pockets)
-            for P in ps:
-                if is_unobstructed(C, T, P, balls):
-                    s = shot(C, T, P)
-                    return s
+            possible += possible_pockets(C, T, pockets)
+
+    possible.sort(reverse=True)
+
+    for (DP, T, P) in possible:
+        if is_unobstructed(C, T, P, balls):
+            s = shot(C, T, P)
+            return s
             
-    return (0, -200)
+    return (50, 50)
 
 class ContactListener(b2ContactListener):
     def __init__(self):
@@ -286,7 +290,7 @@ def main():
     colors.extend([rand_color() for x in range(10)]) # More balls
     colors.extend([(0, 0, 0)]*6) # Pockets
 
-    animate = False
+    animate = True if len(sys.argv) > 1 and sys.argv[1] == "-a" else False
 
     # Break (hit the cue ball)
     cue_ball = balls[0]
