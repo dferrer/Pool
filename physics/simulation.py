@@ -199,11 +199,12 @@ def rand_color():
     return (randrange(15,240), randrange(15,240), randrange(15, 240))
 
 def possible_pockets(C, T, pockets):
-    dot_pockets = sorted(map(lambda P: (dot(unit(P - T), unit(T - C)), P), pockets), reverse=True)
-    return map(lambda P: P[1], filter(lambda P: P[0] > 0, dot_pockets))
+    return filter(lambda P: P[0] > 0.0, \
+                  map(lambda P: (dot(unit(P - T), unit(T - C)), T, P), \
+                      pockets))
 
 def shot(C, T, P):
-    return 50 * unit(T + unit(T - P) * BALL_RADIUS * 1.75 - C) 
+    return 100 * unit(T + unit(T - P) * BALL_RADIUS * 1.5 - C) 
 
 # Check if a line segment intersects with a circle.
 def vector_ball_intersect(position, radius, source, finish):
@@ -222,22 +223,11 @@ def vector_ball_intersect(position, radius, source, finish):
     # Plug and chug.
     d_r = sqrt((x_2 - x_1)**2 + (y_2 - y_1)**2)
     det = x_1 * y_2 - x_2 * y_1
-    delta = radius**2 * d_r**2 - det**2
+    delta = 4 * radius**2 * d_r**2 - det**2
 
     # Check for intersection.
     print delta, position
     return delta >= 0
-
-    # return False
-
-    # o - cue ball position
-    # b - position of ball
-    # d - (x,y) component of velocity
-
-    # a = 1
-    # b = dot(2*D, O - B)
-    # c = length(O - B)**2 - (2 * BALL_RADIUS)**2
-    # return b**2 - 4*a*c >= 0
 
 def is_unobstructed(cue, target, pocket, balls):
     # print cue, target, pocket
@@ -254,20 +244,22 @@ def is_unobstructed(cue, target, pocket, balls):
                 return False
     return True
 
-
 def select_shot(cue, balls, pockets):
     C = cue.body.position
+    possible = []
     for ball in balls[1:]:
         T = ball.body.position
         if T[0] < TABLE_WIDTH and T[1] < TABLE_HEIGHT:
-            ps = possible_pockets(C, T, pockets)
-            for P in ps:
-                if is_unobstructed(C, T, P, balls):
-                    print C, T, P
-                    s = shot(C, T, P)
-                    return s
-    print 'no shot'
-    return (0, -200)
+            possible += possible_pockets(C, T, pockets)
+
+    possible.sort(reverse=True)
+
+    for (DP, T, P) in possible:
+        if is_unobstructed(C, T, P, balls):
+            s = shot(C, T, P)
+            return s
+            
+    return (50, 50)
 
 class ContactListener(b2ContactListener):
     def __init__(self):
@@ -318,6 +310,7 @@ def main():
     colors.extend([(0, 0, 0)]*6) # Pockets
 
     animate = True
+    # animate = True if len(sys.argv) > 1 and sys.argv[1] == "-a" else False
 
     # Break (hit the cue ball)
     cue_ball = balls[0]
