@@ -205,22 +205,52 @@ def possible_pockets(C, T, pockets):
 def shot(C, T, P):
     return 50 * unit(T + unit(T - P) * BALL_RADIUS * 1.75 - C) 
 
-# What's your vector, victor?
-def vector_ball_intersect(D, O, B):
-    a = 1
-    b = dot(2*D, O - B)
-    c = length(O - B)**2 - (2 * BALL_RADIUS)**2
-    return b**2 - 4*a*c >= 0
+# Check if a line segment intersects with a circle.
+def vector_ball_intersect(position, radius, source, finish):
+    # This formula works for a ball centered at the origin.
+    # Thus, we normalize by subtracting the position of the ball from the source and finish positions.
+    source_normal = source - position
+    finish_normal = finish - position
+    print position, source, finish
 
-def is_unobstructed(C, T, P, balls):
-    CT = T - C #path to target
-    TP = P - T #target to pocket
+    # Rename some things.
+    x_1 = source_normal[0]
+    y_1 = source_normal[1]
+    x_2 = finish_normal[0]
+    y_2 = finish_normal[1]
+
+    # Plug and chug.
+    d_r = sqrt((x_2 - x_1)**2 + (y_2 - y_1)**2)
+    det = x_1 * y_2 - x_2 * y_1
+    delta = radius**2 * d_r**2 - det**2
+
+    # Check for intersection.
+    print delta, position
+    return delta >= 0
+
+    # return False
+
+    # o - cue ball position
+    # b - position of ball
+    # d - (x,y) component of velocity
+
+    # a = 1
+    # b = dot(2*D, O - B)
+    # c = length(O - B)**2 - (2 * BALL_RADIUS)**2
+    # return b**2 - 4*a*c >= 0
+
+def is_unobstructed(cue, target, pocket, balls):
+    # print cue, target, pocket
+    CT = target - cue # path to target
+    TP = pocket - target # target to pocket
     for b in balls[1:]:
-        d = b.body.position - T
+        if b.body.position[0] == 5 and b.body.position[1] == 5:
+            continue
+        d = b.body.position - target
+
         # check that b !== T
-        if d[0] > .0001 and d[1] > .0001:
-            if vector_ball_intersect(CT, C, b.body.position) or \
-               vector_ball_intersect(TP, T, b.body.position):
+        if abs(d[0]) > .0001 and abs(d[1]) > .0001:
+            if vector_ball_intersect(b.body.position, b.shape.radius, cue, target) or vector_ball_intersect(b.body.position, b.shape.radius, target, pocket):
                 return False
     return True
 
@@ -233,9 +263,10 @@ def select_shot(cue, balls, pockets):
             ps = possible_pockets(C, T, pockets)
             for P in ps:
                 if is_unobstructed(C, T, P, balls):
+                    print C, T, P
                     s = shot(C, T, P)
                     return s
-            
+    print 'no shot'
     return (0, -200)
 
 class ContactListener(b2ContactListener):
@@ -286,7 +317,7 @@ def main():
     colors.extend([rand_color() for x in range(10)]) # More balls
     colors.extend([(0, 0, 0)]*6) # Pockets
 
-    animate = False
+    animate = True
 
     # Break (hit the cue ball)
     cue_ball = balls[0]
