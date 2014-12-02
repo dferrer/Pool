@@ -1,4 +1,5 @@
 from __future__ import division
+from colorsys import rgb_to_hls
 from SimpleCV import *
 from cluster import HierarchicalClustering
 
@@ -22,7 +23,6 @@ def getTableColor(camera):
         img = camera.getImage()
         img.show()
         m = img.meanColor()
-        print m
     return m
 
 def getTableArea(camera, params):
@@ -109,12 +109,35 @@ def drawPoints(points, img):
 def toTableCoords(points):
     return map(lambda p: [p[0]-points[1][0], p[1]-points[0][1]], points)
 
+def findClusters(blobs):
+    centers = map(lambda b: b.centroid(), blobs)
+    cl = HierarchicalClustering(centers, lambda p1, p2: length([p1, p2]))
+    clusters = cl.getlevel(25)
+    return clusters
+
 def findBalls(img):
-    edges = img.getFullEdgeImage
-    edges.show()
-    if(blobs):
-       blobs.show()
-    return True
+    edges = ballEdges(img)
+    blobs = edges.findBlobs()
+    clusters = findClusters(blobs)
+    centers = map(averageCoords, clusters)
+
+    circleLayer = DrawingLayer((img.width, img.height))
+    
+    for point in centers:
+        circleLayer.circle(point, 15)
+
+    img.addDrawingLayer(circleLayer)
+    img.applyLayers()
+
+    return centers
+
+def hsv_sum((h, s, v)):
+    return (h + v, h + v, h + v)
+
+def ballEdges(img):
+    cimg = img.toHSV().applyPixelFunction(hsv_sum) 
+    edges = cimg.edges(t1=120)
+    return edges
 
 def validFrame(corners, tableBlob):
     #check area of biggest blob

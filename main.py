@@ -2,6 +2,8 @@ from __future__ import division
 import poolcv
 import poolcam
 import sys
+from physics import simulation
+
 from SimpleCV import *
 
 def processVideo(video, params):
@@ -27,7 +29,6 @@ def processVideo(video, params):
 
 def mainLoop():
     camera = Camera()
-    print Color.BLUE
     params = poolcv.getParams(camera)
     while True:
         raw_input("Press press Enter to continue, Ctrl + C to stop.\n")
@@ -45,5 +46,10 @@ if __name__ == "__main__":
 
     elif(sys.argv[1] == "-c"):
         mainLoop()
-    
-                
+
+    elif sys.argv[1] == "-b":
+        dim = (1000, 400)
+        img = Image(sys.argv[2]).scale(dim[0], dim[1]).crop(.03 * dim[0], .03 * dim[1], .94 * dim[0], .94 * dim[1])
+        balls = poolcv.findBalls(img)
+        balls = map(lambda p: (p[0]/dim[0], p[1]/dim[1]), balls)
+        simulation.run(ball_positions=balls)

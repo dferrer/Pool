@@ -106,11 +106,13 @@ def break_positions():
 def restore_balls(world, positions):
     return [make_ball(world, pos, BALL_DENSITY) for pos in positions]
 
-def make_balls(world, positions=break_positions()):
+def make_balls(world, positions, add_cue=False):
     '''Create a cue ball and 10 other balls.'''
-    cue_ball = make_ball(world, position=(TABLE_WIDTH / 2.0 + TABLE_WIDTH / 4.0 + 0.4, TABLE_HEIGHT / 2.0), density=CUE_BALL_DENSITY)
-    other_balls = [make_ball(world, pos, BALL_DENSITY) for pos in positions]
-    return [cue_ball] + other_balls
+    balls = [make_ball(world, pos, BALL_DENSITY) for pos in positions]
+    if add_cue:
+        cue_ball = make_ball(world, position=(TABLE_WIDTH / 2.0 + TABLE_WIDTH / 4.0 + 0.4, TABLE_HEIGHT / 2.0), density=CUE_BALL_DENSITY)
+        return [cue_ball] + balls
+    return balls
 
 def length(vector):
     return sqrt(vector[0]**2 + vector[1]**2)
@@ -304,31 +306,38 @@ def restore_world(positions):
     balls = restore_balls(w, positions)
     return w
 
-def main():
+
+def run(ball_positions=[], is_break=False, animate=True):
     # Set up the table and balls
-    screen, clock = setup_pygame('Physics!')
+    screen, clock = setup_pygame('Pool!')
     world = setup_box2D()
     edges = make_table(world)
-    balls = make_balls(world)
+    if len(ball_positions) == 0:
+        ball_positions = break_positions()
+        is_break = True
+    else:
+        ball_positions = map(lambda (x, y): (x * TABLE_WIDTH, (1-y) * TABLE_HEIGHT), ball_positions)
+    balls = make_balls(world, ball_positions, add_cue=is_break)
     pockets = make_pockets(world)
     pocket_positions = map(lambda p: p.position, pockets)
 
     # For now, make random ball colors
     colors = [(150, 111, 51)] * 4  # Edges
-    colors.append((255, 255, 255)) # Cue ball
-    colors.extend([rand_color() for x in range(4)])  # Balls
-    colors.append((0, 0, 0))  # 8 ball
-    colors.extend([rand_color() for x in range(10)]) # More balls
+    if is_break:
+        colors.append((255, 255, 255)) # Cue ball
+    colors.extend([rand_color() for x in range(len(ball_positions))])  # Balls
     colors.extend([(0, 0, 0)]*6) # Pockets
-
-    # animate = True
-    animate = True if "-a" in sys.argv else False
 
     # Break (hit the cue ball)
     cue_ball = balls[0]
-    set_cue_position(cue_ball)
-    force = break_shot(cue_ball, balls[1])
+    if is_break:
+        set_cue_position(cue_ball)
+        force = break_shot(cue_ball, balls[1])
+    else:
+        force = select_shot(cue_ball, balls, pocket_positions)
 
+    force = (5, 5)
+    
     n = -1
      # Do N random shots
     start = time.time()
@@ -350,7 +359,7 @@ def main():
         # restore_world(positions)
         if made < 15:
             force = select_shot(cue_ball, balls, pocket_positions)
-        # raw_input('Press enter to simulate the next shot')
+        raw_input('Press enter to simulate the next shot')
     finish = time.time()
     print "It took", n, "shots to make all balls."
     print "We missed", misses, " times."
@@ -358,4 +367,5 @@ def main():
     print (finish - start)/n
         
 if __name__ == '__main__':
-    main()
+    a = True if "-a" in sys.argv else False
+    run(animate=a, is_break=True)
