@@ -49,7 +49,10 @@ if __name__ == "__main__":
 
     elif sys.argv[1] == "-b":
         dim = (1000, 400)
-        img = Image(sys.argv[2]).scale(dim[0], dim[1]).crop(.03 * dim[0], .03 * dim[1], .94 * dim[0], .94 * dim[1])
+        img = Image(sys.argv[2])
+        params = {"area": 1463010.0, "color": Color.BLUE} 
+        t = poolcv.makeTransformed(img, params)
+        img = t.scale(dim[0], dim[1]).crop(.03 * dim[0], .03 * dim[1], .94 * dim[0], .94 * dim[1])
         balls = poolcv.findBalls(img)
         balls = map(lambda p: (p[0]/dim[0], p[1]/dim[1]), balls)
         simulation.run(ball_positions=balls)
