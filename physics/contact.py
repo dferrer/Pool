@@ -1,4 +1,5 @@
 from Box2D import b2ContactListener, b2PolygonShape
+from common import remove
 
 class ContactListener(b2ContactListener):
     def __init__(self):
@@ -7,7 +8,8 @@ class ContactListener(b2ContactListener):
 
     def DestroyBalls(self, world):
         for ball in self.to_destroy:
-            world.DestroyBody(ball)
+            # world.DestroyBody(ball)
+            remove(ball)
         self.to_destroy = []
 
     def PreSolve(self, contact, _):
