@@ -63,7 +63,8 @@ def make_table(world):
     '''Create static bodies to represent the edges of the table.'''
     positions = [(TABLE_WIDTH / 2.0, EDGE_WIDTH), (EDGE_WIDTH,TABLE_HEIGHT / 2), (TABLE_WIDTH - EDGE_WIDTH,TABLE_HEIGHT / 2), (TABLE_WIDTH / 2.0, TABLE_HEIGHT - EDGE_WIDTH)]
     dimensions = [(TABLE_WIDTH / 2,EDGE_WIDTH), (EDGE_WIDTH, TABLE_HEIGHT / 2), (EDGE_WIDTH, TABLE_HEIGHT / 2), (TABLE_WIDTH / 2, EDGE_WIDTH)]
-    edges = [world.CreateStaticBody(position=pos, shapes=b2PolygonShape(box=dim), restitution=RESTITUTION) for pos, dim in zip(positions, dimensions)]
+    edge_color = (150, 111, 51)
+    edges = [world.CreateStaticBody(position=pos, shapes=b2PolygonShape(box=dim), restitution=RESTITUTION, userData=edge_color) for pos, dim in zip(positions, dimensions)]
     for edge in edges:
         edge.fixtures[0].friction = FRICTION
     return edges
@@ -85,40 +86,42 @@ def make_pockets(world):
     offsets = [0.0, 90.0, 180.0, 270.0]
     vertices = [get_vertices(num_vertices, offset) for offset in offsets]
     shapes = [b2PolygonShape(vertices=verts) for verts in vertices]
-    pockets = [world.CreateStaticBody(position=pos, shapes=shape, restitution=RESTITUTION) for pos, shape in zip(positions, shapes)]
+    pocket_color = (5,5,5)
+    pockets = [world.CreateStaticBody(position=pos, shapes=shape, restitution=RESTITUTION, userData=pocket_color) for pos, shape in zip(positions, shapes)]
     return pockets
 
-def make_ball(world, position, density):
+def make_ball(world, position, density, color):
     '''Create a dynamic body to respresent a ball.'''
-    body = world.CreateDynamicBody(position=position, bullet=True)
-    ball = body.CreateCircleFixture(radius=BALL_RADIUS, density=CUE_BALL_DENSITY, restitution=RESTITUTION, friction=FRICTION)#, typ='ball')
+    body = world.CreateDynamicBody(position=position, bullet=True, userData=color)
+    ball = body.CreateCircleFixture(radius=BALL_RADIUS, density=CUE_BALL_DENSITY, restitution=RESTITUTION, friction=FRICTION)
     return ball
-
-def break_positions():
-    wbase = TABLE_WIDTH / 2.0 - 0.5
-    hbase = TABLE_HEIGHT / 2.0
-    return [(wbase, hbase), \
-                 (wbase - .05, hbase + .025), (wbase - .05, hbase - .025), \
-                 (wbase - .10, hbase + .050), (wbase - .10, hbase),        (wbase - .10, hbase - .050), \
-                 (wbase - .15, hbase + .075), (wbase - .15, hbase + .025), (wbase - .15, hbase - .025), (wbase - .15, hbase - .075), \
-                 (wbase - .20, hbase + .100), (wbase - .20, hbase + .050), (wbase - .20, hbase),        (wbase - .20, hbase - .050), (wbase - .20, hbase - .100)]
 
 def restore_balls(world, positions):
     return [make_ball(world, pos, BALL_DENSITY) for pos in positions]
 
+def get_break_positions():
+    wbase = TABLE_WIDTH / 2.0 -.05
+    hbase = TABLE_HEIGHT / 2.0
+    positions = [(wbase, hbase), \
+                 (wbase - .05, hbase + .025), (wbase - .05, hbase - .025), \
+                 (wbase - .10, hbase + .050), (wbase - .10, hbase - .050), \
+                 (wbase - .15, hbase + .075), (wbase - .15, hbase + .025), (wbase - .15, hbase - .025), (wbase - .15, hbase - .075), \
+                 (wbase - .20, hbase + .100), (wbase - .20, hbase + .050), (wbase - .20, hbase),        (wbase - .20, hbase - .050), (wbase - .20, hbase - .100)]
+    return positions    
+
 def make_balls(world, positions, add_cue=False):
-    '''Create a cue ball and 10 other balls.'''
-    balls = [make_ball(world, pos, BALL_DENSITY) for pos in positions]
+    '''Create a cue ball and 15 other balls.'''
+    positions = get_break_positions()
+    balls = [make_ball(world, pos, BALL_DENSITY, color=rand_color()) for pos in positions]
+    eight_ball = make_ball(world, position=(TABLE_WIDTH / 2.0 - .15, TABLE_HEIGHT / 2.0), density=CUE_BALL_DENSITY, color=(0,0,0))
+    balls.append(eight_ball)
     if add_cue:
-        cue_ball = make_ball(world, position=(TABLE_WIDTH / 2.0 + TABLE_WIDTH / 4.0 + 0.4, TABLE_HEIGHT / 2.0), density=CUE_BALL_DENSITY)
-        return [cue_ball] + balls
+        cue_ball = make_ball(world, position=(TABLE_WIDTH / 2.0 + TABLE_WIDTH / 4.0 + 0.4, TABLE_HEIGHT / 2.0), density=CUE_BALL_DENSITY, color=(255,255,255))
+        balls.insert(0, cue_ball)
     return balls
 
-def length(vector):
-    return sqrt(vector[0]**2 + vector[1]**2)
-
 def unit(vector):
-    return vector / length(vector)
+    return vector / sqrt(vector[0]**2 + vector[1]**2)
 
 def dot(a, b):
     return a[0] * b[0] + a[1] * b[1]
@@ -153,7 +156,7 @@ def remove(ball):
     ball.linearVelocity[0] = 0 
     ball.linearVelocity[1] = 0
 
-def simulate(world, balls, edges, colors, screen, clock, do_draw):
+def simulate(world, balls, edges, pockets, screen, clock, do_draw):
     world.Step(TIME_STEP, 10, 10)
     while is_moving(world):
         # Check for quit event
@@ -172,7 +175,7 @@ def simulate(world, balls, edges, colors, screen, clock, do_draw):
 
         # Draw the world
         if do_draw:
-            draw(world, balls, edges, screen, clock, colors)
+            draw(world, balls, edges, screen, clock)
 
     scratch = False
     if abs(balls[0].body.position[0] - 5) < .0001 and abs(balls[0].body.position[1] - 5) < .0001: 
@@ -181,7 +184,7 @@ def simulate(world, balls, edges, colors, screen, clock, do_draw):
 
     return (world, scratch)
 
-def draw(world, balls, edges, screen, clock, colors):
+def draw(world, balls, edges, screen, clock):
     '''Main game loop.'''
     background_color = (20, 130, 57)
     # DERP
@@ -191,8 +194,8 @@ def draw(world, balls, edges, screen, clock, colors):
     screen.fill(background_color)
     
     # Draw balls and edges!
-    for i, body in enumerate(world.bodies):
-        body.fixtures[0].shape.draw(screen, body, b2Fixture, colors[i])
+    for body in world.bodies:
+        body.fixtures[0].shape.draw(screen, body, b2Fixture, body.userData)
     
     # Display. Tick the clock in increments of the FPS variable
     pygame.display.flip()
@@ -312,21 +315,11 @@ def run(ball_positions=[], is_break=False, animate=True):
     screen, clock = setup_pygame('Pool!')
     world = setup_box2D()
     edges = make_table(world)
-    if len(ball_positions) == 0:
-        ball_positions = break_positions()
-        is_break = True
-    else:
+    if len(ball_positions) != 0:
         ball_positions = map(lambda (x, y): (x * TABLE_WIDTH, (1-y) * TABLE_HEIGHT), ball_positions)
     balls = make_balls(world, ball_positions, add_cue=is_break)
     pockets = make_pockets(world)
     pocket_positions = map(lambda p: p.position, pockets)
-
-    # For now, make random ball colors
-    colors = [(150, 111, 51)] * 4  # Edges
-    if is_break:
-        colors.append((255, 255, 255)) # Cue ball
-    colors.extend([rand_color() for x in range(len(ball_positions))])  # Balls
-    colors.extend([(0, 0, 0)]*6) # Pockets
 
     # Break (hit the cue ball)
     cue_ball = balls[0]
@@ -347,7 +340,7 @@ def run(ball_positions=[], is_break=False, animate=True):
     while made < 15:
         n += 1
         cue_ball.body.ApplyForce(force=force, point=cue_ball.body.position, wake=True)
-        (w, s) = simulate(world, balls, edges, colors, screen, clock, animate)
+        (w, s) = simulate(world, balls, edges, pockets, screen, clock, animate)
         if s:
             scratches += 1
         m = num_made(balls)
@@ -355,8 +348,6 @@ def run(ball_positions=[], is_break=False, animate=True):
             misses += 1
         made = m
         print "We've made: ", made
-        # positions = ball_positions(balls)
-        # restore_world(positions)
         if made < 15:
             force = select_shot(cue_ball, balls, pocket_positions)
         raw_input('Press enter to simulate the next shot')
