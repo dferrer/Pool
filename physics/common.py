@@ -38,12 +38,7 @@ def remove(ball):
     ball.linearVelocity[1] = 0
 
 def set_cue_position(cue):
-    if '-b' in argv:
-        i = argv.index('-b')
-        cue.body.position[0] = float(argv[i+1])
-        cue.body.position[1] = float(argv[i+2])
-    else:
-        cue.body.position += (randrange(-100, 101) * .001, randrange(-100, 101) * .001)
+    cue.body.position += (randrange(-100, 101) * .001, randrange(-100, 101) * .002)
 
 #############################################################
 #                         SELECTION                         #
@@ -85,5 +80,5 @@ def select_shot(cue, balls, pockets):
 
 def shot(C, T, P):
     direction = unit(T + unit(T - P) * BALL_RADIUS * 1.5 - C)
-    power = min(100 / dot(unit(P - T), unit(T - C)), 150)
+    power = min(100.0 / dot(unit(P - T), unit(T - C)), 150)
     return power * direction

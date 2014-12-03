@@ -10,7 +10,7 @@ from sys import argv, exit
 import pygame
 
 # Keep things consistent.
-seed(5)
+seed(3)
 
 def simulate(world, balls, edges, pockets, screen, clock, do_draw):
     background_color = (20, 130, 57) # Green felty color.
@@ -46,14 +46,14 @@ def simulate(world, balls, edges, pockets, screen, clock, do_draw):
 
     return scratch
 
-def run(ball_positions=[], is_break=False, animate=True, balls_made=0):
+def run(ball_positions=[], is_break=True, animate=True, balls_made=0):
     # Set up the table and balls
     screen, clock = setup_pygame('Pool!')
     world = setup_box2D()
     edges = make_edges(world)
     pockets = make_pockets(world)
     pocket_positions = map(lambda p: p.position, pockets)
-    if ball_positions:
+    if len(ball_positions) != 0:
         ball_positions = map(lambda (x, y): (x * TABLE_WIDTH, (1-y) * TABLE_HEIGHT), ball_positions)
     balls = make_balls(world, ball_positions, add_cue=is_break)
 
@@ -66,14 +66,14 @@ def run(ball_positions=[], is_break=False, animate=True, balls_made=0):
         force = select_shot(cue_ball, balls, pocket_positions)
 
     # Run the simulation!
-    misses, scratches, made_last_round = 0, 0, balls_made
-    while balls_made < 15: # IMPORTANT: 'made' needs to start at however many balls are missing from table (taken from image, fix in main.py) otherwise there is an out of bounds error
+    misses, scratches, initial = 0, 0, balls_made
+    while balls_made < 15:
         raw_input('Press enter to simulate the next shot')
         cue_ball.body.ApplyForce(force=force, point=cue_ball.body.position, wake=True)
         scratch = simulate(world, balls, edges, pockets, screen, clock, animate)
         scratches += int(scratch)
         made_total = num_made(balls)
-        made_this_round = made_total - balls_made
+        made_this_round = initial + made_total - balls_made
         if made_this_round == 0:
             misses += 1
         else:

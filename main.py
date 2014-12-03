@@ -1,3 +1,4 @@
+from __future__ import division
 from vision.poolcv import makeTransformed, getParams, findBalls
 from vision.poolcam import getValidImage
 from physics.simulation import run
@@ -37,8 +38,9 @@ def from_image():
     params = {"area": 1463010.0, "color": Color.BLUE}
     transform = makeTransformed(img, params)
     img = transform.scale(dim[0], dim[1]).crop(.03 * dim[0], .03 * dim[1], .94 * dim[0], .94 * dim[1])
-    balls = [(b[0]/dim[0], b[1]/dim[1]) for b in findBalls(img)]
-    run(ball_positions=balls)
+    balls = [(ball[0]/dim[0], ball[1]/dim[1]) for ball in findBalls(img)]
+    made = 15 - len(balls)
+    run(ball_positions=balls, is_break=False, balls_made=made)
 
 def main():
     # Check number of command-line arguments.
@@ -51,6 +53,7 @@ def main():
         '-i' : from_image,
         '-c' : from_camera,
         '-v' : from_video,
+        '-r' : run
     }
 
     # Dispatch.
