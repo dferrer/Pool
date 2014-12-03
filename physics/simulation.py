@@ -8,8 +8,6 @@ from draw import *
 from common import break_shot, is_moving, num_made, select_shot, set_cue_position
 from physics import apply_friction
 
-# 2 and 5 are decent.
-seed(5)
 
 def simulate(world, balls, edges, pockets, screen, clock, do_draw):
     background_color = (20, 130, 57) # Green felty color.
@@ -43,13 +41,16 @@ def simulate(world, balls, edges, pockets, screen, clock, do_draw):
 
     return (world, scratch)
 
-def run(ball_positions=[], is_break=False, animate=True, made=0):
+def initial_display(world, cue_ball, balls, edges, pockets, screen, clock):
+    cue_ball.body.ApplyForce(force=(2, 2), point=cue_ball.body.position, wake=True)
+    simulate(world, balls, edges, pockets, screen, clock, True)
+
+def run(ball_positions=[], is_break=True, animate=True, made=0):
     # Set up the table and balls
     screen, clock = setup_pygame('Pool!')
     world = setup_box2D()
     edges = make_edges(world)
-    if len(ball_positions) != 0:
-        ball_positions = map(lambda (x, y): (x * TABLE_WIDTH, (1-y) * TABLE_HEIGHT), ball_positions)
+    ball_positions = map(lambda (x, y): (x * TABLE_WIDTH, (1-y) * TABLE_HEIGHT), ball_positions)
     balls = make_balls(world, ball_positions, add_cue=is_break)
     pockets = make_pockets(world)
     pocket_positions = map(lambda p: p.position, pockets)
@@ -61,6 +62,8 @@ def run(ball_positions=[], is_break=False, animate=True, made=0):
         force = break_shot(cue_ball, balls[1])
     else:
         force = select_shot(cue_ball, balls, pocket_positions)
+
+    initial_display(world, cue_ball, balls, edges, pockets, screen, clock)
 
     n = -1
      # Do N random shots

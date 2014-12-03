@@ -1,3 +1,4 @@
+from __future__ import division
 from constants import *
 from physics import dot, unit, vector_circle_intersect
 from Box2D import b2Vec2
@@ -49,12 +50,7 @@ def break_shot(cue, target):
     return unit(target.body.position - cue.body.position) * 200
 
 def set_cue_position(cue):
-    if '-b' in argv:
-        i = argv.index('-b')
-        cue.body.position[0] = float(sys.argv[i+1])
-        cue.body.position[1] = float(sys.argv[i+2])
-    else:
-        cue.body.position += (randrange(-100, 101) * .001, randrange(-100, 101) * .001)
+    cue.body.position += (randrange(-100, 101) * .001, randrange(-100, 101) * .002)
 
 def is_unobstructed(cue, target, pocket, balls):
     CT = target - cue # path to target
