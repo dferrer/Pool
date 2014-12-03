@@ -74,8 +74,8 @@ def make_balls(world, positions, add_cue=False, add_eight=False):
         positions = get_break_positions()
         add_cue = True
     balls = [make_ball(world, pos, BALL_DENSITY, color=rand_color()) for pos in positions]
-    eight_ball = make_ball(world, position=(TABLE_WIDTH / 2.0 - .15, TABLE_HEIGHT / 2.0), density=CUE_BALL_DENSITY, color=(0,0,0))
     if add_eight:
+        eight_ball = make_ball(world, position=(TABLE_WIDTH / 2.0 - .15, TABLE_HEIGHT / 2.0), density=CUE_BALL_DENSITY, color=(0,0,0))
         balls.append(eight_ball)
     if add_cue:
         cue_ball = make_ball(world, position=(TABLE_WIDTH / 2.0 + TABLE_WIDTH / 4.0 + 0.4, TABLE_HEIGHT / 2.0), density=CUE_BALL_DENSITY, color=(255,255,255))
