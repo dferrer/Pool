@@ -4,11 +4,18 @@ from Box2D import b2Vec2
 from random import randrange
 from sys import argv
 
-def rand_color():
-    return (randrange(15,240), randrange(15,240), randrange(15, 240))
+#############################################################
+#                      MISCELLANEOUS                       #
+#############################################################
 
-def num_made(balls):
-    return map(is_made, balls).count(True)
+def ball_positions(balls):
+    c = []
+    for ball in balls:
+        c.append((ball.body.position[0], ball.body.position[1]))
+    return c
+
+def break_shot(cue, target):
+    return unit(target.body.position - cue.body.position) * 200
 
 def is_made(ball):
     return abs(ball.body.position[0] - 5) < .0001 and abs(ball.body.position[1] - 5) < .0001
@@ -19,42 +26,28 @@ def is_moving(world):
             return True
     return False
 
+def num_made(balls):
+    return map(is_made, balls).count(True)
+
+def rand_color():
+    return (randrange(15,240), randrange(15,240), randrange(15, 240))
+
 def remove(ball):
     ball.position = b2Vec2(5.0,5.0)
     ball.linearVelocity[0] = 0
     ball.linearVelocity[1] = 0
 
-def ball_positions(balls):
-    c = []
-    for ball in balls:
-        c.append((ball.body.position[0], ball.body.position[1]))
-    return c
+def set_cue_position(cue):
+    if '-b' in argv:
+        i = argv.index('-b')
+        cue.body.position[0] = float(argv[i+1])
+        cue.body.position[1] = float(argv[i+2])
+    else:
+        cue.body.position += (randrange(-100, 101) * .001, randrange(-100, 101) * .001)
 
 #############################################################
 #                         SELECTION                         #
 #############################################################
-
-def possible_pockets(C, T, pockets):
-    return filter(lambda P: P[0] > 0.0, \
-                  map(lambda P: (dot(unit(P - T), unit(T - C)), T, P), \
-                      pockets))
-
-def shot(C, T, P):
-    direction = unit(T + unit(T - P) * BALL_RADIUS * 1.5 - C)
-    power = min(100 / dot(unit(P - T), unit(T - C)), 150)
-    return power * direction
-
-def break_shot(cue, target):
-    print 'Breaking from', cue.body.position[0], cue.body.position[1]
-    return unit(target.body.position - cue.body.position) * 200
-
-def set_cue_position(cue):
-    if '-b' in argv:
-        i = argv.index('-b')
-        cue.body.position[0] = float(sys.argv[i+1])
-        cue.body.position[1] = float(sys.argv[i+2])
-    else:
-        cue.body.position += (randrange(-100, 101) * .001, randrange(-100, 101) * .001)
 
 def is_unobstructed(cue, target, pocket, balls):
     CT = target - cue # path to target
@@ -68,6 +61,11 @@ def is_unobstructed(cue, target, pocket, balls):
                 if vector_circle_intersect(b.body.position, b.shape.radius, cue, target) or vector_circle_intersect(b.body.position, b.shape.radius, target, pocket):
                     return False
     return True
+
+def possible_pockets(C, T, pockets):
+    return filter(lambda P: P[0] > 0.0, \
+                  map(lambda P: (dot(unit(P - T), unit(T - C)), T, P), \
+                      pockets))
 
 def select_shot(cue, balls, pockets):
     C = cue.body.position
@@ -84,3 +82,8 @@ def select_shot(cue, balls, pockets):
             return shot(C, T, P)
 
     return shot(C, possible[0][1], possible[0][2])
+
+def shot(C, T, P):
+    direction = unit(T + unit(T - P) * BALL_RADIUS * 1.5 - C)
+    power = min(100 / dot(unit(P - T), unit(T - C)), 150)
+    return power * direction
