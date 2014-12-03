@@ -1,8 +1,11 @@
 from constants import *
+from draw import draw
 from physics import dot, unit, vector_circle_intersect
 from Box2D import b2Vec2
 from random import randrange
 from sys import argv
+from pygame.locals import QUIT
+import pygame
 
 #############################################################
 #                      MISCELLANEOUS                       #

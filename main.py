@@ -40,7 +40,7 @@ def from_image():
     img = transform.scale(dim[0], dim[1]).crop(.03 * dim[0], .03 * dim[1], .94 * dim[0], .94 * dim[1])
     balls = [(ball[0]/dim[0], ball[1]/dim[1]) for ball in findBalls(img)]
     made = 15 - len(balls)
-    run(ball_positions=balls, is_break=False, balls_made=made)
+    run(ball_positions=balls, is_break=False, balls_made=made, get_cue=True, add_eight=False)
 
 def main():
     # Check number of command-line arguments.

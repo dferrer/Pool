@@ -68,14 +68,15 @@ def make_ball(world, position, density, color):
     ball = body.CreateCircleFixture(radius=BALL_RADIUS, density=CUE_BALL_DENSITY, restitution=RESTITUTION, friction=FRICTION)
     return ball
 
-def make_balls(world, positions, add_cue=False):
+def make_balls(world, positions, add_cue=False, add_eight=False):
     '''Create a cue ball and 15 other balls.'''
     if len(positions) == 0:
         positions = get_break_positions()
         add_cue = True
     balls = [make_ball(world, pos, BALL_DENSITY, color=rand_color()) for pos in positions]
     eight_ball = make_ball(world, position=(TABLE_WIDTH / 2.0 - .15, TABLE_HEIGHT / 2.0), density=CUE_BALL_DENSITY, color=(0,0,0))
-    balls.append(eight_ball)
+    if add_eight:
+        balls.append(eight_ball)
     if add_cue:
         cue_ball = make_ball(world, position=(TABLE_WIDTH / 2.0 + TABLE_WIDTH / 4.0 + 0.4, TABLE_HEIGHT / 2.0), density=CUE_BALL_DENSITY, color=(255,255,255))
         balls.insert(0, cue_ball)

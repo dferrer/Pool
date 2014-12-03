@@ -46,7 +46,7 @@ def simulate(world, balls, edges, pockets, screen, clock, do_draw):
 
     return scratch
 
-def run(ball_positions=[], is_break=True, animate=True, balls_made=0):
+def run(ball_positions=[], is_break=True, animate=True, balls_made=0, get_cue=False, add_eight=True):
     # Set up the table and balls
     screen, clock = setup_pygame('Pool!')
     world = setup_box2D()
@@ -55,7 +55,7 @@ def run(ball_positions=[], is_break=True, animate=True, balls_made=0):
     pocket_positions = map(lambda p: p.position, pockets)
     if len(ball_positions) != 0:
         ball_positions = map(lambda (x, y): (x * TABLE_WIDTH, (1-y) * TABLE_HEIGHT), ball_positions)
-    balls = make_balls(world, ball_positions, add_cue=is_break)
+    balls = make_balls(world, ball_positions, add_cue=is_break, add_eight=add_eight)
 
     # Break if starting a new game, select shot if starting from existing game (e.g. from an image).
     cue_ball = balls[0]
